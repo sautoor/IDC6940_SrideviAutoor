@@ -1,7 +1,7 @@
 ---
-title: "Image Reconstruction/VAECycleGAN Project - Summer 2025"
-subtitle: "This is a Report Template Quarto"
-author: "Sridevi Autoor (Advisor: Dr. Cohen)"
+title: "VAECycleGAN Project - Summer 2025"
+subtitle: "Image Reconstruction"
+author: "Sridevi Autoor (Advisor: Dr. Cohen) "
 date: '`r Sys.Date()`'
 format:
   html:

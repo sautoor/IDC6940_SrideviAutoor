@@ -1,7 +1,7 @@
 ---
-title: "Present a great story for data science projects"
-subtitle: "This is a Slide Template"
-author: "Students names (Advisor: Dr. Cohen)"
+title: "VAE CycleGAN"
+subtitle: "Image Reconstruction"
+author: "Sridevi Autoor (Advisor: Dr. Cohen)"
 date: '`r Sys.Date()`'
 format:
   revealjs
