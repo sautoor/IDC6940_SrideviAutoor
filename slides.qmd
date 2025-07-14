@@ -17,33 +17,10 @@ editor:
     wrap: 72
 ---
 
-::: callout-important
-**Remember:** Your goal is to make your audience understand and care
-about your findings. By crafting a compelling story, you can effectively
-communicate the value of your data science project.
-
-Carefully read this template since it has instructions and tips to
-writing!
-
-More information about `revealjs`:
-<https://quarto.org/docs/reference/formats/presentations/revealjs.html>
-:::
 
 ## Introduction  {.smaller}
 
--   Develop a storyline that captures attention and maintains interest.
-
--   Your audience is your peers
-
--   Clearly state the problem or question you're addressing.
-
--   Introduce why it is relevant needs.
-
--   Provide an overview of your approach.
-
-In kernel estimator, weight function is known as kernel function
-[@efr2008]. Cite this paper [@bro2014principal]. The GEE [@wang2014].
-The PCA [@daffertshofer2004pca]\*
+Image-to-image translation is a fundamental task in computer vision, enabling applications such as style transfer, domain adaptation, and photo enhancement.
 
 ## Methods
 
