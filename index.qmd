@@ -71,7 +71,7 @@ to edit)
 Image-to-image translation is a fundamental task in computer vision, enabling applications such as style transfer, domain adaptation, and photo enhancement. The goal is to learn a mapping function that transforms an input image from a source domain (e.g., daytime photos) into a corresponding output in a target domain (e.g., nighttime photos). While recent advances in deep generative models have significantly improved translation quality, key challenges remain—particularly in unpaired settings, where aligned training data is unavailable, and in controllable generation, where users desire fine-grained manipulation of outputs.
 
 
-#### Related Work
+### 1.1 Related Work
 
 Deep generative models have traditionally struggled with intractable probabilistic computations, especially in maximum likelihood estimation, and have found it difficult to effectively use piece wise linear units in generative settings. Early models such as Restricted Boltzmann Machines (RBMs) and Deep Belief Networks (DBNs) depend on computationally expensive Markov Chain Monte Carlo (MCMC) methods, while Variational Autoencoders (VAEs) require approximate inference. Other techniques, like score matching and noise-contrastive estimation, impose strict constraints on how probability densities are specified.
 
@@ -123,7 +123,7 @@ By unifying VAEs and CycleGAN, this project develops a framework for bi-directio
 
 ## 2 Methods
 
-#### Autoencoder
+### 2.1 Autoencoder
 
 As mentioned by [@li2023comprehensive], an autoencoder is an unsupervised learning model, which can automatically learn data features from a large number of samples and can act as a dimensionality reduction method. An autoencoder consists of an encoder, which compresses input data into a lower-dimensional representation, and a decoder, which reconstructs the original input. By minimizing reconstruction error, the model learns efficient, compact embeddings—often used for dimensionality reduction or as features for other machine learning model.
 
@@ -150,7 +150,7 @@ $$
 - $x^{(i)}$ is the original input image.
 - $f_\theta$ is the decoder function, and $g_\phi$ is the encoder function.
 
-#### Variational Auto-Encoder (VAE)
+### 2.2 Variational Auto-Encoder (VAE)
 
 Autoencoders(AE) are useful for data compression, denoising or feature extraction. These are deterministic models where the input is mapped to a deterministic latent vector. Given the same input, the encoder will always produce the same point in the latent space. AE cannot generate new data due to the absence of regularity in the latent space which results in lack of continuation in interpolation of data points not in the input sequence. 
 
@@ -174,7 +174,7 @@ VAEs are probabilistic generative models of independent, identically distributed
 The conditional probability $f_\theta(\mathbf{x} \vert \mathbf{z})$ defines a generative model, similar to the decoder $f_\theta(\mathbf{x} \vert \mathbf{z})$  introduced above in Figure1. $f_\theta(\mathbf{x} \vert \mathbf{z})$  is also known as probabilistic decoder.
 The approximation function $h_\phi(\mathbf{z} \vert \mathbf{x})$  is the probabilistic encoder, playing a similar role as $g_\phi(\mathbf{z} \vert \mathbf{x})$ above in Figure 1.
  
-#### Reparameterization Trick
+### 2.3 Reparameterization Trick
 
 The encoder produces a Gausssian distribution’s parameters (mean and variance), and the actual latent representation is sampled from this distribution. The essence of the trick lies in introducing an auxiliary random variable, typically drawn from a standard normal distribution.
  
@@ -193,7 +193,7 @@ $$Z = Z_\mu + Z_\sigma \odot \varepsilon$$
 
 Here, $\varepsilon$ is sampled from a standard normal distribution, that is, $\varepsilon \sim \mathcal{N}(0, 1)$. The symbol $\odot$ stands for element-wise multiplication.
 
-#### Approximate the intractable posterior:
+### 2.4 Approximate the intractable posterior:
 
 VAE approximates $p_{\theta}(x)$ by introducing a variational lower bound. Given the latent variable $z$, VAE attempts to find the model parameter $\theta$ by maximum likelihood method. Due to the latent variable $z$ affecting data $x$, maximum a posteriori with a prior knowledge of $z$ must be considered instead of maximum likelihood. Specifically, VAE estimates posteriori probability $p(z|x)$ with an assumption of a prior knowledge $p(z)$ being a normal Gaussian distribution and drives the approximating model $Q_{\phi}(z\vert x)$ to approximate real (otherwise, intractable) posteriori probability $p(z|x)$.
 
@@ -209,7 +209,7 @@ VAE approximates $p_{\theta}(x)$ by introducing a variational lower bound. Given
 Intuitively, $Q_{\phi}(z\vert x)$ is an encoder which generates the latent variable $z$ given sample $x$; while $p_{\theta}(x\vert z)$ is a decoder which generates samples $x$ given latent variable $z$.
  
  
-**Kullback-Leibler (KL) Divergence:** 
+**2.4.1 Kullback-Leibler (KL) Divergence:** 
 
 The Kullback–Leibler (KL) divergence (also called relative entropy and I-divergence[1]), denoted $D_{KL}(P∥Q)$ is a type of statistical distance: a measure of how much a model probability distribution $Q$ is different from a true probability distribution $P$. 
 
@@ -224,7 +224,7 @@ This term ensures that the learned distribution in the latent space is close to 
 In Variational Autoencoders (VAEs), we use the reverse KL divergence (also called the KL divergence from the approximate posterior to the prior, $\text{KL}\left(Q_{\phi}(z\vert x)\Vert p_{\theta}(z)\right)$ rather than the forward KL divergence $\text{KL}\left(p_{\theta}(z)\Vert Q_{\phi}(z\vert x)\right)$ because the forward KL divergence would require sampling from the true (but unknown) posterior $p_\theta(z|x)$ which is intractable.
 
 
-**Variational/Evidence Lower Bound (ELBO)**
+**2.4.2 Variational/Evidence Lower Bound (ELBO)**
 
 The Variational Lower Bound $\mathcal{L}(\theta, \phi; \mathbf{x})$, also called the Evidence Lower Bound (ELBO), is the objective function used to train Variational Autoencoders (VAEs). It provides a tractable approximation to the intractable true posterior $p_\theta(\mathbf{z}|\mathbf{x})$.
 
@@ -256,19 +256,15 @@ $$
 where:
 
 - $\mathbf{x}$: Observed data (e.g., an image)
-
 - $\mathbf{z}$: Latent variable
-
 - $q_\phi(\mathbf{z}|\mathbf{x})$: Approximate posterior (encoder)
-
 - $p_\theta(\mathbf{x}|\mathbf{z})$: Likelihood (decoder)
-
 - $p_\theta(\mathbf{z})$: Prior over latents (typically $\mathcal{N}(0, I)$)
 
 
 The VAE loss function has two components:
 
-- The Reconstruction Term:
+**The Reconstruction Term:**
 $$
 \mathbb{E}_{q_\phi(\mathbf{z}|\mathbf{x})} \left[ \log p_\theta(\mathbf{x}|\mathbf{z}) \right]
 $$
@@ -277,7 +273,7 @@ and it is similar to an autoencoder's reconstruction loss. This can also be writ
 
 $$L_\text{MSE}(\theta,\phi) = \displaystyle\frac{1}{N}\sum_{i=1}^{N}{\left(x_i -f_\theta (g_\phi (x_i))\right)^2}$$
 
-- The Regularization Term (KL-divergence):
+**The Regularization Term (KL-divergence):**
 $$
 \text{KL}\left( q_\phi(\mathbf{z}|\mathbf{x}) \parallel p_\theta(\mathbf{z}) \right)
 $$
@@ -286,11 +282,8 @@ This penalizes deviations from the prior and ensures a structured latent space. 
 $$L_\text{KL}[G(Z_{\mu}, Z_{\sigma})  |  \mathcal{N}(0, 1)] = -0.5 * \sum_{i=1}^{N}{1 + \log(Z_{\sigma_{i}^2}) - Z_{\mu_{i}}^2 -  Z_{\sigma_{i}}^2}$$
 
 - $L_\text{KL}$ represents the KL divergence loss.
-
 - $G(Z_{\mu}, Z_{\sigma})$ is the Gaussian distribution defined by the encoder’s outputs $Z_{\mu}$ (mean) and $Z_{\sigma}$ (standard deviation).
-
 - $\mathcal{N}(0, 1)$ is the standard normal distribution.
-
 - The formula calculates the difference between the encoder’s distribution and the standard normal distribution for each sample and sums these differences.
 
 
@@ -311,7 +304,7 @@ $$\mathcal{L}_\text{VAE} = \mathcal{L}_\text{recon} + \mathcal{L}_\text{KL}$$
 We want to maximize the (log-)likelihood of generating real data (that is $p_\theta(\mathbf{x})$ and also minimize the difference between the real and estimated posterior distributions.
 
 
-### Generative Adversarial Network (GAN)
+### 2.5 Generative Adversarial Network (GAN)
 
 Generative Adversarial Networks (GANs) help machines to create new, realistic data by learning from existing examples. As [@goodfellow2014generative] explained, the GAN model consists of a Generator (G) and a Discriminator (D). The generative G captures the data distribution, and the discriminative D estimates the probability that a sample came from the training data rather than G. The training procedure for G is to maximize the probability of D making a mistake.
 
@@ -380,7 +373,7 @@ The discriminator ($D$) tries to maximize:
   
   - $\log (1 - D(G(z)))$ (correctly reject fake data).
 
-### Cycle GAN
+### 2.6 Cycle GAN
 CycleGAN builds upon the GAN framework, employing two GANs instead of one. Unlike traditional GANs, CycleGAN takes user-provided images as input rather than random noise, improving user control, resolution, and output quality.
 
 The goal of CycleGAN is to learn mapping functions between two domains $X$ and $Y$ given training samples $\{x_i\}_{i=1}^N$ where $x_i \in X$ and $\{y_j\}_{j=1}^M$ where $y_j \in Y$. As [@zhu2017unpaired] showed, CycleGAN model includes two mapping functions $G: X → Y$ and $F: Y → X$ , and associated adversarial discriminators $Dₓ$ and $Dᵧ$. The discriminator,$Dᵧ$ encourages the generator $G$ to translate $X$ into outputs indistinguishable from domain $Y$ ; in the same way, $Dₓ$ encourages the generator $F$ to translate $Y$ into outputs indistinguishable from domain $X$.
@@ -448,10 +441,7 @@ G^*, F^* = \arg \min_{G,F} \max_{D_X,D_Y} L(G, F, D_X, D_Y).
 \end{align*}
 
 
-
-
-
-### VAE-GAN
+### 2.7 VAE-GAN
 
 By combining  a variational autoencoder with a generative adversarial network we can use learned feature representations in the GAN discriminator as basis for the VAE reconstruction objective.
 
@@ -494,7 +484,7 @@ where:
 - $\lambda$: Weight for adversarial loss (balances VAE and GAN objectives)
 - $\mathbb{E}$: Probability Expectation 
 
-### VAE-CycleGAN
+### 2.8 VAE-CycleGAN
 
 The composite architecture of VAE integrated with CycleGAN is given below.
 
@@ -558,7 +548,7 @@ $$
 - $\theta_2$: $\theta$ parameter for Generator 2 
 - all the other parameters are similar to VAE-GAN losses
 
-#### Convergence
+### 2.9 Convergence
 
 *Why does a neural network trained with cycle loss converge to a single, invertible mapping?*
 
@@ -600,7 +590,7 @@ Since exact recovery is impossible, the model cannot satisfy cycle-consistency f
 Under these assumptions, gradient descent will thus converge to a unique solution $\theta^*$ with corresponding invertible mappings $(f_{\theta^*}, g_{\theta^*})$ between domains $X$ and $Y$.
 
 
-## Analysis
+## 3 Analysis
 
 Code snippets
 
@@ -620,7 +610,7 @@ Architecture diagram /flow
 
 3 implementations
 
-## Results
+## 4 Results
 
 AutoEncoder(AE) implementation
 
@@ -628,9 +618,9 @@ AE-cycleGAN results
 
 VAE-cycleGAN results
 
-## Conclusions
+## 5 Conclusions
 
-## References
+## 6 References
 
 
 
