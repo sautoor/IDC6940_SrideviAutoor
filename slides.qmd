@@ -1,7 +1,7 @@
 ---
 title: "VAE CycleGAN"
-subtitle: "Image Reconstruction"
-author: "Sridevi Autoor (Advisor: Dr. Cohen)"
+subtitle: "A Cycle Consistent Probabilistic Framework for <br>Unpaired Image Translation"
+author: "Sridevi Autoor <br>Advisor: Dr. Cohen"
 date: '`r Sys.Date()`'
 format:
   revealjs
@@ -42,34 +42,7 @@ Image-to-image translation is a fundamental task in computer vision, enabling ap
 
 A study was conducted to determine how...
 
-```{r, warning=FALSE, echo=F, message=FALSE}
-# loading packages 
-library(tidyverse)
-library(knitr)
-library(ggthemes)
-library(ggrepel)
-library(dslabs)
-```
 
-```{r, warning=FALSE, echo=F}
-# Load Data
-#kable(head(murders))
-
-ggplot1 = murders %>% ggplot(mapping = aes(x=population/10^6, y=total)) 
-
-  ggplot1 + geom_point(aes(col=region), size = 4) +
-  geom_text_repel(aes(label=abb)) +
-  scale_x_log10() +
-  scale_y_log10() +
-  geom_smooth(formula = "y~x", method=lm,se = F)+
-  xlab("Populations in millions (log10 scale)") + 
-  ylab("Total number of murders (log10 scale)") +
-  ggtitle("US Gun Murders in 2010") +
-  scale_color_discrete(name = "Region")+
-      theme_bw()
-  
-
-```
 
 ## Modeling and Results
 
