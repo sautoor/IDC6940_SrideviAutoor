@@ -1,7 +1,7 @@
 ---
 title: "VAE-CycleGAN"
 subtitle: "A Cycle Consistent Probabilistic Framework for Unpaired Image Translation"
-author: "Sridevi Autoor <br><br>Advisor: <br> Dr. Cohen "
+author: "Sridevi Autoor <br><br>Advisor: <br> Dr. Achraf Cohen "
 date: '`r Sys.Date()`'
 format:
   html:
