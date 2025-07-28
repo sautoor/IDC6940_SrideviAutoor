@@ -1432,8 +1432,8 @@ $$
 
 ## 5 Conclusions
 
-## 6 References
+1. 
+2. 
 
-(X $\to$ Y and $\to$Y $\to$X)
+## 6 References 
 
-(X $\to$ Y $\to$X' $\to$Y')
