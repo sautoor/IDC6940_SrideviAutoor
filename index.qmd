@@ -5,6 +5,8 @@ author: "Sridevi Autoor <br><br>Advisor: <br> Dr. Achraf Cohen "
 date: '`r Sys.Date()`'
 format:
   html:
+    number-sections: false
+    number-tables: false
     crossref: 
       eq-prefix: "Eq:"
     code-fold: true
@@ -498,7 +500,8 @@ The composite architecture of VAE integrated with CycleGAN is given below.
 
 - ${(x_1, ..., x_n)}$: Input data distribution for the Generator 1 ($x\to y$)
 - ${(y_1, ..., y_n)}$: Input data distribution for the Generator 2 ($y \to x$)
-- ${(p_1,..., p_n)}$ and ${(q_1,..., q_n)}$: Low dimensional Latent distributions  
+
+- ${(p_1,..., p_n)}$ and ${(q_1,..., q_n)}$: Translated/generated images  
 
 The loss function $\mathcal{L}$ for training VAE-CycleGAN model is defined as a four key components:
 
@@ -509,12 +512,18 @@ $$
 
 **VAE Loss** 
 
+The VAE loss consists of two main components:
+
+1. Reconstruction Loss: It measures how well the decoder reconstructs the input data. Since we are not reconstructing the input with a decoder and the generated output is not paired (no deterministic real value to compare with), we do not consider this.
+2. KL Divergence Loss: It regularizes the latent space by encouraging the encoder's distribution $q(z|x)$ to match the prior $p(z)$ (usually standard normal)
 \begin{align*}
 \mathcal{L}_{\text{VAE}}^X &= \mathbb{E}_{q_ϕ(z|x)}\left[\log p_θ(x|z)\right] - \beta D_{\text{KL}}(q_ϕ(z|x) \parallel p(z)) \\
 \mathcal{L}_{\text{VAE}}^Y &= \mathbb{E}_{q_ϕ(z|y)}\left[\log p_θ(y|z)\right] - \beta D_{\text{KL}}(q_ϕ(z|y) \parallel p(z))
 \end{align*}
 
 **Adversarial Loss** 
+
+It is standard GAN loss making generated images indistinguishable from real ones
 
 \begin{align*}
 \mathcal{L}_{\text{GAN}}^{X→Y} &= \mathbb{E}_{y \sim p_{\text{data}}(y)}[\log D_ϕ(y)] + \mathbb{E}_{x \sim p_{\text{data}}(x)}[\log(1 - D_ϕ(G_θ(x))] \\
@@ -523,12 +532,18 @@ $$
 
 
 **Cycle consistency Loss**
+
+It ensures forward and backward cycles reconstruct original images
+
 \begin{align*}
 \mathcal{L}_{\text{cycle}} &= \mathbb{E}_{x \sim p_{\text{data}}(x)}\left[\|x - G_{θ_2}(G_{θ_1}(x))\|_1\right] \\
 &\quad + \mathbb{E}_{y \sim p_{\text{data}}(y)}\left[\|y - G_{θ_1}(G_{θ_2}(y))\|_1\right]
 \end{align*}
 
-**Idetity Loss**
+**Identity Loss**
+
+It ensures the generator to preserve the input's identity when the input is already from the target domain.
+ 
 \begin{align*}
 \mathcal{L}_{\text{identity}} &= \mathbb{E}_{x \sim p_{\text{data}}(x)}\left[\|G_θ(x) - x\|_1\right] \\
 &\quad + \mathbb{E}_{y \sim p_{\text{data}}(y)}\left[\|G_θ(y) - y\|_1\right]
@@ -548,7 +563,78 @@ $$
 - $\theta_2$: $\theta$ parameter for Generator 2 
 - all the other parameters are similar to VAE-GAN losses
 
-### 2.9 Convergence
+
+### 2.9 Metrics ###
+
+The key metrics used in image processing and generative models are Mean Squared Error (MSE),  Peak Signal-to-Noise Ratio (PSNR), Structural Similarity Index (SSIM) and Fréchet Inception Distance (FID)
+
+**Mean Squared Error (MSE)**
+
+ Measures the average squared difference between the predicted (generated) image and the ground truth (real) image.
+$$
+MSE = \frac{1}{N}\sum_{i=1}^N (y_i - \hat{y}_i)^2
+$$
+
+
+where:
+
+- $y_i$ = true pixel value
+- $\hat{y}_i$ = predicted pixel value
+- $N$ = total number of pixels
+
+**Peak Signal-to-Noise Ratio (PSNR)**
+
+A logarithmic measure of image quality based on MSE, relative to the maximum possible pixel value (e.g., 255 for 8-bit images):
+
+
+$$
+PSNR = 10 \cdot \log_{10}\left(\frac{MAX^2}{MSE}\right)
+$$
+
+
+where:
+
+- $MAX$ = maximum possible pixel value (255 for 8-bit images)
+
+Higher PSNR indicates better quality (common in compression, restoration tasks). Values typically range from 20 dB (poor) to 50 dB (excellent).
+
+**Structural Similarity Index (SSIM)**
+
+The Structural Similarity Index (SSIM) is a perceptual metric that quantifies the similarity between two images by comparing their luminance, contrast, and structure. Unlike pixel-based metrics like MSE and PSNR, SSIM aligns better with human perception.
+
+SSIM Formula: For two image patches x and y,
+
+
+$$
+SSIM(x,y) = \frac{(\mu_x^2 + \mu_y^2 + C_1)(\sigma_x^2 + \sigma_y^2 + C_2)}{(2\mu_x\mu_y + C_1)(2\sigma_{xy} + C_2)}
+$$
+
+where:
+- $\mu_x, \mu_y$ = average pixel intensities (luminance)
+- $\sigma_x, \sigma_y$ = standard deviations (contrast)
+- $\sigma_{xy}$ = covariance (structure)
+- $C_1, C_2$ = small constants to avoid division by zero
+
+**Fréchet Inception Distance (FID)**
+Measures the similarity between two sets of images (real vs. generated) using features extracted from a pre-trained Inception-v3 model.
+
+Computes the Fréchet distance between multivariate Gaussians fitted to the feature distributions:
+
+
+$$
+FID = \|\mu_r - \mu_g\|^2 + Tr(\Sigma_r + \Sigma_g - 2(\Sigma_r \Sigma_g)^{1/2})
+$$
+
+where:
+
+- $\mu_r, \mu_g$ = mean features
+- $\Sigma_r, \Sigma_g$ = covariance matrices
+
+
+The lower the FID, the better the quality and diversity of generated images (closer to real data). FID is typically a standard metric for GANs. It correlates well with human perception and captures high-level semantics (not just pixels). 
+
+
+### 2.10 Convergence
 
 *Why does a neural network trained with cycle loss converge to a single, invertible mapping?*
 
@@ -590,37 +676,764 @@ Since exact recovery is impossible, the model cannot satisfy cycle-consistency f
 Under these assumptions, gradient descent will thus converge to a unique solution $\theta^*$ with corresponding invertible mappings $(f_{\theta^*}, g_{\theta^*})$ between domains $X$ and $Y$.
 
 
-## 3 Analysis
+## 3 Implementation 
 
-Code snippets
+Our task involves: 
 
-summary stats
+ (1) converting satellite/aerial photos to map-like representations (and vice versa) without requiring paired training data and 
+ (2) get a realistic translations or generation of new satellite photos (or maps) that are close to the original real aerial photos (or maps)
 
-**Topics to cover:**
+The VAE-CycleGAN is well-suited for this because:
 
-Skip connections
+- Satellite images and maps are unpaired and are not exact pixel-aligned pairs.
 
-upsampling,
+- Maps require structural consistency like roads, buildings etc. which VAEs help preserve.
 
-pixel shuffle, 
+- CycleGAN ensures realistic outputs while maintaining geometric integrity.
 
-convTranspose
+The dataset consists of satellite photos and images. The number of samples in the dataset are 1096, each image has the structure of (C, H, W) where:
 
-Architecture diagram /flow
+- C: the number of input channels
+- H, W:  the height and width of the images
+- all the images have a dimension of (3, 64, 64)
 
-3 implementations
+
+The configuration parameters used for training the model are given in the code below.
+
+<div class="code-toggle">
+  <button class="code-toggle-btn">Configuration Parameters</button>
+  <div class="code-content collapsed">
+
+```python
+
+    'epoch': 0,
+    'n_epochs': 601 ,                     # max channels
+    'dataset_name': 'maps',               # Squashed latent dimension used for VAE
+    'batch_size': 16, 
+    'lr': 0.0002,
+    'b1': 0.5,                            #'leaky_relu',  # 'relu', 'leaky_relu', 'sin'
+    'b2': 0.999, 
+    'decay_epoch': 2,
+    'n_cpu': 8, 
+    'img_height': 64,
+    'img_width': 64,
+    'channels': 3,
+    'sample_interval': 500,  #100
+    'checkpoint_interval': 1,
+    'n_residual_blocks': 1, 
+    'lambda_cyc': 10.0,
+    'lambda_id': 5.0,                     # 0.0, # 1.0, #0.0001, # 1e-6, #1e-6,
+    'latent_dim': 256,                    # Squashed latent dimension used for VAE
+    'n_layers': 2,                        # Number of layers in the generator
+    'lambda_kl': 1e-05,                   # KL divergence loss weight for VAE
+
+```
+  </div>
+</div>
+   
+
+### Training Procedure ####
+
+#### 3.1 Input Image transformations####
+
+A series of image transformations such as data augmentations and preprocessing steps are typically used when preparing images for training a deep learning model.  Before training the VAE-CycleGAN model, the following transformations are made to the data:
+
+- Resize: Each image is resized 12%  larger than the target height while maintaining aspect ratio.
+- Crop : To add variability in the training data, the resized images are randomly cropped to the target height and width dimensions specified in model configuration parameters 
+- Flip: Randomly flipped the image horizontally with a 50% probability to double the training data effectively (data augmentation).
+- To Tensor: Converted the image from PIL format to a PyTorch Tensor. This method also scaled the  pixel values from [0, 255] to [0, 1]
+- Normalize: Normalized the tensor image with mean 0.5 and standard deviation 0.5 for each channel (RGB) to effectively scale the pixel values from [0, 1] to [-1, 1]
+
+
+<div class="code-toggle">
+  <button class="code-toggle-btn">Image transformations</button>
+  <div class="code-content collapsed">
+
+```python
+
+# Image transformations
+transforms_ = [
+    transforms.Resize(int(model_config['img_height'] * 1.12), Image.BICUBIC),
+    transforms.RandomCrop((model_config['img_height'], model_config['img_width'])),
+    transforms.RandomHorizontalFlip(),
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+]
+
+```
+  </div>
+</div>
+  
+  
+
+#### 3.2 Satellite → Map Translation (X → Y) ####
+
+
+![](images/EncoderDecoder.png){width=100%}
+
+
+The VAE helps in learning a probabilistic latent space that captures meaningful representations of the input data.
+
+**Encoder**
+
+The Encoder E extracts the latent features from satellite images. The high dimensional image with 3 input channels (RGB) and with a spacial dimension of 64x64 is reduced to a latent dimension of 256 channels with a spacial resolution of 16x16. The encoder is used for dimensionality reduction and for feature learning.
+  
+
+<div class="code-toggle">
+  <button class="code-toggle-btn">Downsample</button>
+  <div class="code-content collapsed">
+  
+```python
+
+class Downsample(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, factor=2):
+        super(Downsample, self).__init__()
+        
+        self.conv = nn.Conv2d(in_channels, out_channels // factor**2, kernel_size=kernel_size, stride=stride, padding=padding)
+
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.factor = factor
+        assert out_channels % factor**2 == 0
+        assert in_channels * factor**2 % out_channels == 0
+        self.group_size = int(in_channels * factor**2 // out_channels)
+
+    def forward(self, x):
+        y = self.conv(x)
+        y = F.pixel_unshuffle(y, self.factor)
+
+        x = F.pixel_unshuffle(x, self.factor)
+        x = x.view(x.shape[0], self.out_channels, self.group_size, *x.shape[2:])
+        x = x.mean(dim=2)  # Average over the group dimension
+
+        return y + x  # Add the downsampled skip connection
+
+```
+  </div>
+</div>
+
+
+Added to down sampling, the encoder also contains the initial convolution and the residuals blocks which are explained in detail  in the section *4 Encoder * below. 
+
+**Probabilistic sampling **
+
+As explained in the *Methods 2.2* section, the encoder produces a Gausssian distribution’s parameters (mean and variance), and the actual latent representation is sampled from this distribution.
+
+Satellite image $x$ → Encoder $E(x)$ → Latent $z$
+
+
+
+<div class="code-toggle">
+  <button class="code-toggle-btn">Probabilistic sampling </button>
+  <div class="code-content collapsed">
+  
+```python
+        # normal distribution
+        groups = 1
+        self.fc_mu = GroupedLinear(out_features, latent_dim, groups=groups, skip=True) # * self.latent_img_size**2
+        self.fc_logvar = GroupedLinear(out_features, latent_dim, groups=groups, skip=False)
+        self.fc_decode = GroupedLinear(latent_dim, out_features, groups=groups, skip=True)
+
+```
+  </div>
+</div>
+
+
+**Decoder**
+
+From a $Z$ distribution sample, the decoder $G(z)$ generates maps $\hat{y}$.  The low dimensional image with 256 input channels (RGB) and with a spacial dimension of 16x16 is enlarged to an output of 3 channels with a spacial resolution of 64x64. The translated/generated output should match with one of the images in the Y domain. The decoder in the generator 1 translates satellite photos to maps whereas the decoder in the generator 2 translated maps to satellite pictures. 
+
+Added to up-sampling, the decoder also contains the residuals blocks, instance normalization and reflection padding. The purpose and the functionality of these blocks and their implementation are discussed in the section *4 Encoder * below. 
+
+Latent $z$  → Decoder $G(z)$ →  $\hat{y}\ $ (generated/fake map)
+
+
+<div class="code-toggle">
+  <button class="code-toggle-btn">Upsample </button>
+  <div class="code-content collapsed">
+  
+```python
+
+class Upsample(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, factor=2):
+        super(Upsample, self).__init__()
+
+        self.conv = nn.Conv2d(in_channels, out_channels * factor**2, kernel_size=kernel_size, stride=stride, padding=padding)
+
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.factor = factor
+        assert out_channels * factor**2 % in_channels == 0, f"out_channels * factor**2 ({out_channels * factor**2}) must be divisible by in_channels ({in_channels})"
+        self.repeats = out_channels * factor**2 // in_channels
+
+    def forward(self, x):
+        z = self.conv(x) + x.repeat_interleave(self.repeats, dim=1) # conv w skip
+        return F.pixel_shuffle(z, self.factor)
+        
+
+```
+  </div>
+</div>
+
+
+
+<div class="code-toggle">
+  <button class="code-toggle-btn">Decoder </button>
+  <div class="code-content collapsed">
+  
+```python
+
+        # Decoder
+        decoder = []
+        for _ in range(num_residual_blocks):
+            decoder += [ResidualBlock(out_features)]
+
+        # Upsampling
+        for _ in range(n_layers):
+            out_features //= 2
+            decoder += [
+                Upsample(in_features, out_features, kernel_size=3, padding=1),
+                nn.InstanceNorm2d(out_features),
+                nn.ReLU(inplace=True),
+            ]
+            in_features = out_features
+
+        # Output layer
+        decoder += [nn.ReflectionPad2d(channels), nn.Conv2d(out_features, channels, 7), nn.Tanh()]
+
+        self.decoder = nn.Sequential(*decoder)
+
+```
+  </div>
+</div>
+
+
+**Generators**
+
+The Generator 1 consists of encoder, probabilistic sampling and a decoder that converts satellite images to latent distribution to maps.
+
+Satellite image $x$ → Encoder $E(x)$ → Latent $z$  → Decoder $G(z)$ → $\hat{y}$ (generated Map image)
+
+
+The Generator 2 consists of encoder, probabilistic sampling and a decoder that converts maps to latent distribution to satellite images.
+
+
+Map image $y$ → Encoder $E(y)$ → Latent $z$  → Decoder $F(z)$ →  $\hat{x}$ (generated Satellite image)
+
+
+**Discriminator D_Y ** 
+
+Discriminator D_Y differentiates whether the generator map image  $\hat{y}$ is a real map or a fake map; accordingly updates the training parameters and gives an update to the Generator-X
+
+D_Y outputs 0 if it detects that the generated map image is a fake and outputs 1 if it gets tricked(fooled) by the generator 1 and takes the generated map image as the real image.
+
+
+<div class="code-toggle">
+  <button class="code-toggle-btn">Discriminator </button>
+  <div class="code-content collapsed">
+  
+```python
+
+class Discriminator(nn.Module):
+    def __init__(self, input_shape):
+        super(Discriminator, self).__init__()
+
+        channels, height, width = input_shape
+
+        # Calculate output shape of image discriminator (PatchGAN)
+        self.output_shape = (1, height // 2 ** 4, width // 2 ** 4)
+
+        def discriminator_block(in_filters, out_filters, normalize=True):
+            """Returns downsampling layers of each discriminator block"""
+            layers = [nn.Conv2d(in_filters, out_filters, 4, stride=2, padding=1)]
+            if normalize:
+                layers.append(nn.InstanceNorm2d(out_filters))
+            layers.append(nn.LeakyReLU(0.2, inplace=True))
+            return layers
+
+        self.model = nn.Sequential(
+            *discriminator_block(channels, 64, normalize=False),
+            *discriminator_block(64, 128),
+            *discriminator_block(128, 256),
+            *discriminator_block(256, 512),
+            nn.ZeroPad2d((1, 0, 1, 0)),
+            nn.Conv2d(512, 1, 4, padding=1)
+        )
+
+    def forward(self, img):
+        return self.model(img)
+
+
+```
+  </div>
+</div>
+
+#### 3.3 Map → Satellite Translation (Y → X) ####
+
+The process explained in *section 3.2* is repeated for the generator-2 except that the input is changed from satellite photos to maps and the generated output are aerial photos instead of maps.
+
+Map image $y$ → Encoder $E(y)$ → Latent $z$  → Decoder $F(z)$ →  $\hat{x}\ $ (generated/fake satellite image)
+
+
+**Discriminator D_X ** 
+
+Discriminator $D_X$ differentiates whether the generator satellite photo  $\hat{x}$ is a real aerial picture or a fake picture; accordingly updates the training parameters and gives an update to the Generator-Y.
+
+$D_X$ outputs 0 if it detects that the generated satellite image is a fake and outputs 1 if it gets tricked(fooled) by the generator 2 and takes the generated satellite image as the real image. Discriminators ($D_X, D_Y$) ensure realism in both X and Y domains
+
+
+#### 3.4 GAN loss ####
+
+Loss GAN_XY is the mean square loss of the discriminator $D_Y$ output with the valid tensor vector of 1s'. Similarly, Loss GAN_YX is the mean square loss of the discriminator $D_X$ output with the valid tensor vector of 1s'.
+
+GAN loss is the average of the GAN losses from both generators.
+
+![](images/loss_GAN_XY.png){width=100%}
+
+
+<div class="code-toggle">
+  <button class="code-toggle-btn">GAN Loss </button>
+  <div class="code-content collapsed">
+  
+```python
+
+        # GAN loss
+        fake_B = G_AB(real_A)
+        loss_GAN_AB = criterion_GAN(D_B(fake_B), valid)
+        fake_A = G_BA(real_B)
+        loss_GAN_BA = criterion_GAN(D_A(fake_A), valid)
+
+        loss_GAN = (loss_GAN_AB + loss_GAN_BA) / 2
+
+```
+  </div>
+</div>
+
+
+#### 3.5 Cycle Consistency ####
+
+To maintain the cycle consistency between the input images and the generated images, the output from Generator 1 is given as input to the Generator 2 and the output from the Generator 2 is compared with the original input. In other words, the first generator takes the input as the satellite images and gives the output as fake maps. The second generator takes the fake maps as input and generates fake satellite images. The L1 loss function is used to find the error between the generated fake satellite images with that of original satellite images.
+
+Similarly, when we input maps to the Generator 2 the output are fake satellite photos. These fake aerial pictures are input to Generator 1 which generates fake maps.  The L1 loss function is used to find the error between the generated fake maps with that of original maps.
+
+Cycle consistency ensures $F(G(E(x))) \approx \ x$ (reconstruct original satellite image). Similarly, $G(F(y)) \approx \ y$ (reconstruct original map).
+
+![](images/loss_cycle_X_Y.png){width=100%}
+
+<div class="code-toggle">
+  <button class="code-toggle-btn">Cycle Consistency Loss </button>
+  <div class="code-content collapsed">
+  
+```python
+
+        # Cycle loss
+        recov_A = G_BA(fake_B)
+        loss_cycle_A = criterion_cycle(recov_A, real_A)
+        recov_B = G_AB(fake_A)
+        loss_cycle_B = criterion_cycle(recov_B, real_B)
+
+        loss_cycle = (loss_cycle_A + loss_cycle_B) / 2
+
+```
+  </div>
+</div>
+
+
+#### 3.6 Identity Loss ####
+
+The generator 1 ($G_{XY}$) translates (generates) an image from the $X$ domain to the $Y$ domain. This means, for a given satellite image input, the $G_{XY}$ generates a map image. If a map image is given as input to the generator $G_XY$ then it should still preserve the input's identity and generate a map image from the latent distribution.
+
+Similarly, when a satellite image is given as input to the generator  $G_{YX}$, then the generator should preserve the satellite image identity and translate it to another satellite image. 
+
+The L1 loss measures the error between the generated images and the real images.
+
+![](images/loss_identity_XY.png){width=100%}
+
+
+<div class="code-toggle">
+  <button class="code-toggle-btn">Identity Loss </button>
+  <div class="code-content collapsed">
+  
+```python
+    # Identity loss
+        loss_id_A = criterion_identity(G_BA(real_A), real_A)
+        loss_id_B = criterion_identity(G_AB(real_B), real_B)
+
+        loss_identity = (loss_id_A + loss_id_B) / 2
+```
+  </div>
+</div>
+
+
+**Kullback-Leibler Divergence (KL) loss**
+
+The KL-Divergence ensures the encoded distributions stay close to $N(0,1)$ but not identical. The encoder maps each input $x$ to a mini Gaussian distribution in latent space, defined by mean $\mu(x)$ and variance $\sigma^2(x)$. The KL Divergence Loss helps these mini-distributions $q (z|x)$ stay "well-behaved" relative to the prior $p(z)$
+
+- If $\sigma^2_j$  → 0 ($j$ denotes the input sample), the latent dimension $z_j$ becomes deterministic with no randomness, defeating the purpose of a probabilistic VAE.
+- If $\mu_j$ for each input grows too large, the latent space becomes unstructured, harming generation.
+- If  $\sigma^2_j$  → $\infty$, the mini distributions overlap too much and the latent dimensions become noisy and uninformative.
+
+Therefore, KL-divergence loss acts as a balancing act to prevent mini distributions from collapsing, from drifting too far, and from overlapping too much. This loss helps in producing realistic outputs from sampling the latent distribution, avoids the mode collapse and helps in smooth interpolation between latent points and meaningful translations. 
+
+
+<div class="code-toggle">
+  <button class="code-toggle-btn">KL-Divergence </button>
+  <div class="code-content collapsed">
+  
+```python
+
+    def kld_loss(self, mu, logvar):
+        kld = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+        return kld / mu.size(0)
+
+
+    ### During Generator training
+    if self.training:  # Only calculate KL divergence loss during training
+        kl_loss = self.kld_loss(mu, logvar)
+        wandb.log({"kl_loss": kl_loss.item()})  # Log KL divergence loss to Weights & Biases
+        (kl_loss * self.lambda_kl).backward(retain_graph=True)  # Retain graph for backpropagation
+
+
+```
+  </div>
+</div>
+
+
+**Total Loss**
+
+<div class="code-toggle">
+  <button class="code-toggle-btn">Total Loss </button>
+  <div class="code-content collapsed">
+  
+```python
+
+# Total loss
+loss_G = loss_GAN + model_config['lambda_cyc'] * loss_cycle  + model_config['lambda_id'] * loss_identity
+
+```
+  </div>
+</div>
+
+There's no VAE reconstruction loss since we are not reconstructing the input data using a decoder ; we are translating the input image ($x$, satellite photo from the $X$ domain) to a map image($y$) in another domain ($Y$). The model also considers unpaired images; therefore we cannot have a VAE reconstruction error. The KL-Divergence loss is added to the total loss above to get the complete objective. 
+
+
+
+### 4 Encoder implementation ###
+
+The detailed process and the VAE Encoder is as follows: 
+
+**1. Initial Convolution:** 
+
+This includes a Reflection Padding followed by a Convolution, Instance Normalization and a ReLU layer.
+  
+- Reflection Padding: It pads the input tensor by reflecting/mirroring values at the boundaries (instead of       padding with zeros or other constants). For a padding size of n, it mirrors the n nearest pixels along the      edges. This helps in preserving the image structure and avoids edge artifacts (unlike zero-padding).
+      
+- Convolution layer: Using a kernel_size of 7, this layer is used for feature extraction. The input image with
+3 features is convoluted to an output image with 64 features. 
+      
+- Instance Normalization: Unlike BatchNorm, which normalizes across batches, InstanceNorm normalizes each 
+channel in each sample independently. For input shape (N, C, H, W), it computes mean/variance per (C, H, W)
+slice. Instance normalization helps for stable training; it is crucial for image generation and works well
+with small batch sizes.
+      
+- ReLU : Introduces non-linearity after normalization.
+
+<div class="code-toggle">
+  <button class="code-toggle-btn">Reflect_Conv_Normalize</button>
+  <div class="code-content collapsed">
+  
+```python
+
+    self.block = nn.Sequential(
+        nn.ReflectionPad2d(1),
+        nn.Conv2d(in_features, in_features, 3),
+        nn.InstanceNorm2d(in_features),
+        nn.ReLU(inplace=True), 
+        nn.ReflectionPad2d(1),
+        nn.Conv2d(in_features, in_features, 3),
+        nn.InstanceNorm2d(in_features),
+    )
+
+```
+  </div>
+</div>
+
+  
+There's no spatial compression yet; channels increase from 3 → 64. The input image (3, 64,64) is changed to an output (64, 64, 64).
+
+
+**2. Downsampling Blocks:**
+
+The downsampling module combines convolution, pixel unshuffle, and a skip connection to reduce spatial resolution while preserving information. 
+  
+- Convolution: This layer reduces channel dimension or extracts features before pixel unshuffle. It maps input 64 channels → output 16 channels. This compression is for efficiency before expensive spatial operations.
+  
+- Pixel Unshuffle: Rearranges spatial dimensions into channels. Pixel Shuffle (F.pixel_shuffle) and Pixel Unshuffle (F.pixel_unshuffle) are efficient operations for upsampling and downsampling in neural networks, often used as alternatives to transposed convolutions (for upsampling) and strided convolutions (for downsampling).
+
+  - Pixel unshuffle decreases spatial resolution while increasing channel depth. It acts as the inverse of Pixel Shuffle. This is more stable than strided convolution and avoids aliasing.
+  
+  - For the input with dimensions ( C, H x r, W x r) converts to (C * /$r^2$, H/r, W/r). 
+  
+  - We used 2 layers of down sampling with a downscale factor of 2. 
+   
+  - Each Downsample layer reduces spatial size by 2× and doubles channels:
+
+  - First Downsample: (64, 64, 64) → (128, 32, 32)
+
+  - Second Downsample: (128, 32, 32) → (256, 16, 16)
+
+- Skip Connection: 
+  
+  - A skip connection (or residual connection) is a pathway that allows the input to bypass one or more layers and be added directly to the output. This concept was popularized by **add link ResNet (2015)** and is widely used to improve gradient flow avoiding vanishing gradients and helps preserve input information.
+
+  - A skip connection ensures the original input contributes to the output (residual learning) and stabilizes training 
+ 
+  - During downsampling, skip connection processes the input x(in the code above) separately to match the shape of the convoluted and pixel unshuffled output y. 
+ 
+  - Uses pixel unshuffle and channel averaging to align dimensions of the x with the output y (please check the code)
+  
+
+<div class="code-toggle">
+  <button class="code-toggle-btn">Downsample</button>
+  <div class="code-content collapsed">
+  
+```python
+
+class Downsample(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, factor=2):
+        super(Downsample, self).__init__()
+        
+        self.conv = nn.Conv2d(in_channels, out_channels // factor**2, kernel_size=kernel_size, stride=stride, padding=padding)
+
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.factor = factor
+        assert out_channels % factor**2 == 0
+        assert in_channels * factor**2 % out_channels == 0
+        self.group_size = int(in_channels * factor**2 // out_channels)
+
+    def forward(self, x):
+        y = self.conv(x)
+        y = F.pixel_unshuffle(y, self.factor)
+
+        x = F.pixel_unshuffle(x, self.factor)
+        x = x.view(x.shape[0], self.out_channels, self.group_size, *x.shape[2:])
+        x = x.mean(dim=2)  # Average over the group dimension
+
+        return y + x  # Add the downsampled skip connection
+
+```
+  </div>
+</div>
+
+
+**3. Residual Blocks:**
+
+  - Residual Blocks consists of two reflection paddings, two convolutions, two instance normalization, a Relu activation layer for non-linearity and a skip connection. The purpose of reflection padding, instance norm and skip connections are explained earlier.
+  
+  - While avoiding vanishing gradients during back propagation, and learning the residual (difference) between the input and the output with skip connection, the residual blocks ensures stable training even with many layers.
+  
+
+
+
+<div class="code-toggle">
+  <button class="code-toggle-btn">Residual Block</button>
+  <div class="code-content collapsed">
+  
+```python
+class ResidualBlock(nn.Module):
+    def __init__(self, in_features):
+        super(ResidualBlock, self).__init__()
+
+        self.block = nn.Sequential(
+            nn.ReflectionPad2d(1),
+            nn.Conv2d(in_features, in_features, 3),
+            nn.InstanceNorm2d(in_features),
+            nn.ReLU(inplace=True), 
+            nn.ReflectionPad2d(1),
+            nn.Conv2d(in_features, in_features, 3),
+            nn.InstanceNorm2d(in_features),
+        )
+
+    def forward(self, x):
+        return x + self.block(x)
+
+```
+  </div>
+</div>
+
+  
+  - We used 2 layers of residual blocks
+  
+  - These maintain the same dimensions of the output (256, 16, 16) after downsampling.
+
+
+
+**Metrics**
+
+The Frechet Inception Distance, Structural Similarity Index Measure, Mean Squared Error, and  Peak Signal Noise Ratio are calculated between the translated/generated images and the original images.
+
+<div class="code-toggle">
+  <button class="code-toggle-btn">Metrics </button>
+  <div class="code-content collapsed">
+  
+```python
+
+# Initialize metrics
+fid = FrechetInceptionDistance(feature=2048).to(device)
+ssim = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)
+
+mse = MeanSquaredError().to(device)
+psnr = PeakSignalNoiseRatio().to(device)
+
+# Function to calculate metrics between real and fake images
+@torch.no_grad()
+
+def calculate_metrics(real, fake):
+    """Calculate various metrics between real and fake images"""
+    metrics = {}
+    
+    # Denormalize images (assuming they're in [-1, 1] range)
+    real_denorm = (real + 1) / 2  # Scale to [0, 1]
+    fake_denorm = (fake + 1) / 2
+    
+    # Reset metrics
+    mse.reset()
+    psnr.reset()
+    ssim.reset()
+    fid.reset()
+    
+    # Calculate metrics
+    metrics['mse'] = mse(real_denorm, fake_denorm).item()
+    metrics['psnr'] = psnr(real_denorm, fake_denorm).item()
+    metrics['ssim'] = ssim(real_denorm, fake_denorm).item()
+    
+    # For FID, we need uint8 images in 0-255 range
+    real_uint8 = (real_denorm * 255).byte()
+    fake_uint8 = (fake_denorm * 255).byte()
+    
+    # Update FID
+    fid.update(real_uint8, real=True)
+    fid.update(fake_uint8, real=False)
+    metrics['fid'] = fid.compute().item()
+
+    # Convert all metrics to Python floats
+    return {k: float(v) if hasattr(v, 'item') else float(v) for k, v in metrics.items()}
+    
+    return metrics
+
+```
+  </div>
+</div>
+
 
 ## 4 Results
 
-AutoEncoder(AE) implementation
 
-AE-cycleGAN results
+### 4.1 CycleGAN Results###
 
-VAE-cycleGAN results
+Below are the results of the images generated from a CycleGAN model - with out probabilistic sampling from the latent space.
+
+In Figure (a) below, the first row shows the input satellite pictures followed by generated maps for the satellite pictures in the second row. The third row shows the input maps followed by generated satellite pictures in the fourth row. 
+
+In Figure (b) below, the first row shows the input satellite pictures followed by generated/fake maps for the satellite pictures in the second row. The third row shows the generated satellite pictures from the fake maps.The fourth row shows the generated maps from the fake satellite pictures.
+
+
+<div id="tbl-ae-simple" class="full-width-table">
+<table style="width:100%">
+  <tr>
+    <th>Aerial Views to Maps (X $\to$ Y $\&$  Y $\to$ X )</th>
+    <th>Aerial Views to Maps (X $\to$ Y $\to$  X'$\to$ Y')</th>
+  </tr>
+  <tr>
+    <td><img src="images/Results/CycleGAN_a2m_603_X_Y.png" style="width:100%"></td>
+    <td><img src="images/Results/CycleGAN_a2m_603_X_Y_X_Y.png" style="width:100%"></td>
+  </tr>
+  <tr>
+    <td>(a)</td>
+    <td>(b)</td>
+  </tr>
+</table>
+<p>CycleGAN: Satellite to Maps Transformation</p>
+</div>
+
+### 4.2 VAE-CycleGAN Results###
+
+
+Below are the results of the images generated from a Variation Autoencoder CycleGAN model - with probabilistic sampling from the latent space.
+
+<div id="tbl-vae-simple" class="full-width-table">
+<table style="width:100%">
+  <tr>
+    <th>Aerial Views to Maps (X $\to$ Y $\&$  Y $\to$ X )</th>
+    <th>Aerial Views to Maps (X $\to$ Y $\to$  X'$\to$ Y')</th>
+  </tr>
+  <tr>
+    <td><img src="images/Results/VAE_cycleGAN_a2m_603_X_Y.png" style="width:100%"></td>
+    <td><img src="images/Results/VAE_cycleGAN_a2m_603_X_Y_X_Y.png" style="width:100%"></td>
+  </tr>
+  <tr>
+    <td>(a)</td>
+    <td>(b)</td>
+  </tr>
+</table>
+<p>VAE-CycleGAN: Satellite to Maps Transformation</p>
+</div>
+
+![](images/Results/losses_1.png){width=100%}
+
+![](images/Results/losses_2.png){width=100%}
+
+### 4.3 Metrics###
+
+**Compression Rate **
+
+Compression rate measures how much the input is reduced in spatial dimensions while increasing channel depth. It's calculated as:
+
+
+$$
+\text{Compression Rate} = \frac{\text{Latent Spatial Size}}{\text{Input Spatial Size}} \times \frac{\text{Input Channels}}{\text{Final Channels}}
+$$
+ 
+The latent representation in the VAE-CycleGAN model is a flat vector (not spatial), Therefore, we the spatial reduction factor and channel expansion/reduction are described separately.
+
+**Spatial Compression**
+
+Input Spatial Size: 64×64=4096 pixels.
+
+Final Encoder Output: 16×16=256 pixels.
+
+
+$$
+\text{Spatial Compression Factor}: \frac{64 \times 64}{16 \times 16} = 16 \times
+$$
+
+*(The image is compressed to 1/16th of its original spatial area.)*
+
+**Channel Expansion**
+
+Input Channels: 3 (RGB).
+
+Final Encoder Channels: 256.
+
+
+$$
+\text{Channel Expansion Factor}: \frac{256}{3} \approx 85.33 \times
+$$
+
+**AE-CycleGAN**
+
+![](images/Results/CycleGAN_a2m_metrics.png){width=100%}
+
+**VAE-CycleGAN**
+
+![](images/Results/VAE_cycleGAN_a2m_metrics.png){width=100%}
+
 
 ## 5 Conclusions
 
 ## 6 References
 
+(X $\to$ Y and $\to$Y $\to$X)
 
-
+(X $\to$ Y $\to$X' $\to$Y')

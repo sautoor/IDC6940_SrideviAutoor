@@ -1,0 +1,2 @@
+Epoch	Train MSE	Train PSNR	Train SSIM	Train FID	Val MSE 	Val PSNR	Val SSIM	Val FID
+603	0.0168		17.73		0.4234		315.42		0.0068		21.69		0.4488		241.01
