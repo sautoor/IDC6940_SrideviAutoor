@@ -1,0 +1,7 @@
+/* Adjust TOC margins or alignment */
+#TOC {
+  padding: 1em;
+  margin-bottom: 2em;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+}

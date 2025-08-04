@@ -5,7 +5,12 @@ author: "Sridevi Autoor <br><br>Advisor: <br> Dr. Achraf Cohen "
 date: '`r Sys.Date()`'
 format:
   html:
-    number-sections: false
+    toc: true
+    toc-depth: 4
+    toc-title: "Contents"
+    toc-float: true
+    css: styles.css
+    number-sections: true
     number-tables: false
     crossref: 
       eq-prefix: "Eq:"
@@ -22,13 +27,12 @@ execute:
 editor: 
   markdown: 
     wrap: 72
-
-
 ---
 
 Slides: [slides.html](slides.html){target="_blank"} ( Go to `slides.qmd`
 to edit)
 
+```{=html}
 <style>
   .code-toggle {
     margin: 10px 0;
@@ -55,7 +59,9 @@ to edit)
   
 
 </style>
+```
 
+```{=html}
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.code-toggle-btn').forEach(btn => {
@@ -67,187 +73,343 @@ to edit)
     });
   });
 </script>
+```
 
-## 1. Introduction
+## Introduction
 
-Image-to-image translation is a fundamental task in computer vision, enabling applications such as style transfer, domain adaptation, and photo enhancement. The goal is to learn a mapping function that transforms an input image from a source domain (e.g., daytime photos) into a corresponding output in a target domain (e.g., nighttime photos). While recent advances in deep generative models have significantly improved translation quality, key challenges remain—particularly in unpaired settings, where aligned training data is unavailable, and in controllable generation, where users desire fine-grained manipulation of outputs.
+Image-to-image translation is a fundamental task in computer vision,
+enabling applications such as style transfer, domain adaptation, and
+photo enhancement. The goal is to learn a mapping function that
+transforms an input image from a source domain (e.g., Satellite pictures)
+into a corresponding output in a target domain (e.g., Maps ).
+While recent advances in deep generative models have significantly
+improved translation quality, key challenges remain—particularly in
+unpaired settings, where aligned training data is unavailable, and in
+controllable generation, where users desire fine-grained manipulation of
+outputs.
 
+### Related Work
 
-### 1.1 Related Work
+Deep generative models have traditionally struggled with intractable
+probabilistic computations, especially in maximum likelihood estimation,
+and have found it difficult to effectively use piece wise linear units
+in generative settings. Early models such as Restricted Boltzmann
+Machines (RBMs) and Deep Belief Networks (DBNs) depend on
+computationally expensive Markov Chain Monte Carlo (MCMC) methods, while
+Variational Autoencoders (VAEs) require approximate inference. Other
+techniques, like score matching and noise-contrastive estimation, impose
+strict constraints on how probability densities are specified.
 
-Deep generative models have traditionally struggled with intractable probabilistic computations, especially in maximum likelihood estimation, and have found it difficult to effectively use piece wise linear units in generative settings. Early models such as Restricted Boltzmann Machines (RBMs) and Deep Belief Networks (DBNs) depend on computationally expensive Markov Chain Monte Carlo (MCMC) methods, while Variational Autoencoders (VAEs) require approximate inference. Other techniques, like score matching and noise-contrastive estimation, impose strict constraints on how probability densities are specified.
+Generative Adversarial Networks (GANs)[@goodfellow2014generative]
+address many of these challenges through an adversarial training
+framework. They eliminate the need for Markov chains, explicit
+likelihoods, or approximate inference. By framing learning as a minimax
+game between a generator ($G$) and discriminator ($D$), GANs learn a
+loss that tries to classify if the output image is real or fake, while
+simultaneously training a generative model to minimize this loss. GANs
+enable efficient backpropagation-based optimization while producing
+high-fidelity samples.
 
-Generative Adversarial Networks (GANs)[@goodfellow2014generative] address many of these challenges through an adversarial training framework. They eliminate the need for Markov chains, explicit likelihoods, or approximate inference. By framing learning as a minimax game between a generator ($G$) and discriminator ($D$), GANs learn a loss that tries to classify if the output image is real or fake, while simultaneously training a generative model to minimize this loss. GANs enable efficient backpropagation-based optimization while producing high-fidelity samples.
+Though GANs are powerful for generating realistic data, they suffer from
+a few drawbacks:
 
-Though GANs are powerful for generating realistic data, they suffer from a few drawbacks:
+1.  Mode Collapse: the generator may produce limited varieties of
+    outputs instead of covering the full data distribution. For ex: We
+    get the same painting output for a variety of input photos.
 
-1. Mode Collapse: the generator may produce limited varieties of outputs instead of covering the full data distribution. For ex: We get the same painting output for a variety of input photos. 
+2.  Non-convergence: the competition between the generator ($G$) and
+    discriminator ($D$) may never stabilize, causing persistent
+    oscillation in losses.
 
-2. Non-convergence: the competition between the generator ($G$) and discriminator ($D$) may never stabilize, causing persistent oscillation in losses.
+3.  Requires paired data: GAN-based approaches such as conditional GANs
+    [@isola2017image], requires paired examples ($x$, $y$) where the
+    generator learns a mapping from input image $x$ to generate the
+    output image $y$. However, obtaining such paired datasets is often
+    impractical in real-world scenarios.
 
-3. Requires paired data: GAN-based approaches such as conditional GANs [@isola2017image], requires  paired examples ($x$, $y$) where the generator learns a mapping from input image $x$ to generate the output image $y$. However, obtaining such paired datasets is often impractical in real-world scenarios.
+To overcome these limitations, unsupervised image-to-image translation
+models such as CycleGAN [@zhu2017unpaired] have been developed which
+employ two generator-discriminator pairs ($G:X→Y$ and $F:Y→X$) and
+implement a cycle-consistency loss ($F(G(X)) ≈ X$ and vice versa) along
+with adversarial losses to enable stable unpaired image translation.
+Nevertheless, CycleGAN has its own drawbacks:
 
+1.  There’s no explicit latent space within the generator (or between
+    the two generators) and therefore there is no control over output.
+    The mapping between domains is learned implicitly by the generators.
+    We can't easily specify style, color, or semantic features of the
+    output. A vanilla encoder-decoder CycleGAN (without VAE) is just a
+    deterministic autoencoder-style model. For example, given an image
+    of a horse, it will always generate the same image of a zebra.
 
-To overcome these limitations, unsupervised image-to-image translation models such as CycleGAN [@zhu2017unpaired] have been developed which employ two generator-discriminator pairs ($G:X→Y$ and $F:Y→X$) and implement cycle-consistency loss ($F(G(X)) ≈ X$ and vice versa) along with adversarial losses to enable stable unpaired image translation. Nevertheless, CycleGAN has its own drawbacks:
+2.  There's limited output diversity. Deterministic mappings in the
+    latent space within a generator inhibit multimodal generation. For
+    example, translating a cloudy sky to multiple sunset styles is not
+    possible.
 
-1. There’s no explicit latent space within the generator (or between the two generators) and therefore there is no control over output. The mapping between domains is learned implicitly by the generators. We can't easily specify style, color, or semantic features of the output. A vanilla encoder-decoder CycleGAN (without VAE) is just a deterministic autoencoder-style model. For example, given an  image of a horse, it will always generate the same image of a zebra.
+3.  For a given number of $n$ distinct inputs
+    ($\forall x_i \in X,\ i \in \{1,\ldots,n\}$) that belong to the $X$
+    domain, the model may fail to translate/generate a single output
+    ($y_i \in Y,\ i \in \{1,\ldots,n\}$) out of the possible $n!$
+    permutations (more in the *Methods Convergence* section).
 
-2. There's limited output diversity. Deterministic mappings in the latent space within a generator inhibit multimodal generation. For example, translating a cloudy sky to multiple sunset styles is not possible.  
+A hybrid framework that integrates Variational Autoencoders (VAEs) into
+a GAN was developed by [@yan2025synthetic] to leverage the strengths of
+both architectures.
 
-3. For a given number of $n$ distinct inputs ($\forall x_i \in X,\ i \in \{1,\ldots,n\}$) that belong to the $X$ domain, the model may fail to translate/generate a single output ($y_i \in Y,\ i \in \{1,\ldots,n\}$) out of the possible $n!$ permutations (more in the *Methods Convergence* section).  
+As explained by [@larsen_autoencoding_2016], by combining a variational
+autoencoder with a generative adversarial network we can use learned
+feature representations in the GAN discriminator as basis for the VAE
+reconstruction objective.
 
-A hybrid framework that integrates Variational Autoencoders (VAEs) into a GAN was developed by [@yan2025synthetic]  to leverage the strengths of both architectures.
+Recent studies[@yan2025synthetic] demonstrates that the VAE component,
+utilizing its encoder–decoder architecture, plays a crucial role in
+enhancing the model’s ability to generalize by learning a latent space
+representation of the data. This latent space facilitates the generation
+of high-quality synthetic data by capturing underlying data
+distributions. However, VAE alone can sometimes deviate from the real
+data distribution, which may affect the utility of the synthetic data.
 
-As explained by [@larsen_autoencoding_2016], by combining a variational autoencoder with a generative adversarial network we can use learned feature representations in the GAN discriminator as basis for the VAE reconstruction objective. 
+To address this limitation, GAN was introduced into the model framework.
+GAN’s adversarial training process further refines the generator’s
+output by continuously optimizing against a discriminator. This
+adversarial mechanism ensures that the generated data remains close to
+the real data distribution while simultaneously improving the
+generator’s ability to produce high-fidelity synthetic data.
 
-Recent studies[@yan2025synthetic] demonstrates that the VAE component, utilizing its encoder–decoder architecture, plays a crucial role in enhancing the model’s ability to generalize by learning a latent space representation of the data. This latent space facilitates the generation of high-quality synthetic data by capturing underlying data distributions. However, VAE alone can sometimes deviate from the real data distribution, which may affect the utility of the synthetic data. 
+The combination of VAE and GAN thus leverages the strengths of both
+approaches: VAE’s robust feature extraction and GAN’s fine-tuning
+through adversarial feedback, leading to enhanced data desensitization,
+robustness and generalization.
 
-To address this limitation, GAN was introduced into the model framework. GAN’s adversarial training process further refines the generator’s output by continuously optimizing against a discriminator. This adversarial mechanism ensures that the generated data remains close to the real data distribution while simultaneously improving the generator’s ability to produce high-fidelity synthetic data. 
+We propose an extension of VAE-GAN, VAE-CycleGAN, another hybrid
+framework that integrates Variational Autoencoders (VAEs) into CycleGAN.
+Incorporating a VAE into CycleGAN (or replacing parts of CycleGAN with
+VAE components) combines the adversarial and cycle-consistent training
+of CycleGAN with the probabilistic latent space technique of VAEs. The
+advantages of VAE-CycleGAN over the standard CycleGAN or a simple
+encoder-decoder CycleGAN are:
 
-The combination of VAE and GAN thus leverages the strengths of both approaches: VAE’s robust feature extraction and GAN’s fine-tuning through adversarial feedback, leading to enhanced data desensitization, robustness and generalization.
+1.  Instead of a fixed latent code within the generator, the VAE encodes
+    inputs as mini distribution means, enabling sampling. A VAE-based
+    CycleGAN enforces a structured latent distribution (e.g., Gaussian)
+    via the Kullback-Leibler divergence (KL) loss, making interpolation
+    and manipulation easier (e.g., for attribute editing).
 
-We propose an extension of VAE-GAN, VAE-CycleGAN, another hybrid framework that integrates Variational Autoencoders (VAEs) into CycleGAN. Incorporating a VAE into CycleGAN (or replacing parts of CycleGAN with VAE components) combines the adversarial and cycle-consistent training of CycleGAN with the probabilistic latent space technique of VAEs. The advantages of VAE-CycleGAN over the standard CycleGAN or a simple encoder-decoder CycleGAN are:
+2.  While CycleGAN deterministically maps one input to one output, a VAE
+    can model multimodality by sampling different latent codes $z$ and
+    decode them back to generate different outputs, thus capturing
+    uncertainty and variability in the data. For ex: The generator can
+    produce multiple zebra images (may be different stripe patterns,
+    change in backgrounds, poses etc.) for the same photo of a horse.
 
-1. Instead of a fixed latent code within the generator, the VAE encodes inputs as mini distribution means, enabling sampling. A VAE-based CycleGAN enforces a structured latent distribution (e.g., Gaussian) via the Kullback-Leibler divergence (KL) loss, making interpolation and manipulation easier (e.g., for attribute editing). 
+By unifying VAEs and CycleGAN, this project develops a framework for
+bi-directional translation, where the model:
 
-2. While CycleGAN deterministically maps one input to one output, a VAE can model multimodality by sampling different latent codes $z$ and decode them back to generate different outputs, thus capturing uncertainty and variability in the data. For ex: The generator can produce multiple zebra images (may be different stripe patterns, change in backgrounds, poses etc.) for the same photo of a horse.
+1.  learns to map images from a source domain ($X$, e.g., pictures) to a
+    target domain ($Y$, e.g., paintings) without requiring paired
+    training data
 
-By unifying VAEs and CycleGAN, this project develops a framework for bi-directional translation, where the model:
+2.  enforces a probabilistic latent via the KL divergence loss
 
-1. learns to map images from a source domain ($X$, e.g., pictures) to a target domain ($Y$, e.g., paintings) without requiring paired training data
+3.  ensures realistic and reversible translations (via CycleGAN) with
+    adversarial and cycle-consistency
 
-2. enforces a probabilistic latent via the KL divergence loss 
+4.  preserves input fidelity during domain transfers with VAE
+    reconstruction loss.
 
-3. ensures realistic and reversible translations (via CycleGAN) with adversarial and cycle-consistency 
+## Methods
 
-4. preserves input fidelity during domain transfers with VAE reconstruction loss.  
+### Autoencoder
 
+As mentioned by [@li2023comprehensive], an autoencoder is an
+unsupervised learning model, which can automatically learn data features
+from a large number of samples and can act as a dimensionality reduction
+method. An autoencoder consists of an encoder, which compresses input
+data into a lower-dimensional representation, and a decoder, which
+reconstructs the original input. By minimizing reconstruction error, the
+model learns efficient, compact embeddings—often used for dimensionality
+reduction or as features for other machine learning model.
 
-## 2 Methods
+:::: figure
+![](images/autoencoder-architecture.png){width="60%"}
 
-### 2.1 Autoencoder
-
-As mentioned by [@li2023comprehensive], an autoencoder is an unsupervised learning model, which can automatically learn data features from a large number of samples and can act as a dimensionality reduction method. An autoencoder consists of an encoder, which compresses input data into a lower-dimensional representation, and a decoder, which reconstructs the original input. By minimizing reconstruction error, the model learns efficient, compact embeddings—often used for dimensionality reduction or as features for other machine learning model.
-
-
-::: {.figure}
-![](images/autoencoder-architecture.png){width=100%}
-
-<div style="text-align: center; position: relative;">
-  <span class="caption">Figure 1: Autoencoder</span>
-  <span style="position: absolute; right: 0;">*Source:* [@weng2018vae] </span>
-</div>
+::: {style="text-align: center; position: relative;"}
+[Figure 1: Autoencoder]{.caption} [*Source:*
+[@weng2018vae]]{style="position: absolute; right: 0;"}
 :::
+::::
 
-As [@weng2018vae] explains, the model contains an encoder function $g(.)$ parameterized by $\phi$ and a decoder function $f(.)$ parameterized by $\theta$. The low-dimensional code learned for input $\mathbf{x}$ in the bottleneck layer is $\mathbf{z} = g_\phi(\mathbf{x})$ and the reconstructed input is $\mathbf{x}' = f_\theta(g_\phi(\mathbf{x}))$
+As [@weng2018vae] explains, the model contains an encoder function
+$g(.)$ parameterized by $\phi$ and a decoder function $f(.)$
+parameterized by $\theta$. The low-dimensional code learned for input
+$\mathbf{x}$ in the bottleneck layer is
+$\mathbf{z} = g_\phi(\mathbf{x})$ and the reconstructed input is
+$\mathbf{x}' = f_\theta(g_\phi(\mathbf{x}))$
 
-The parameters $(\theta, \phi)$ are learned together to output a reconstructed data sample same as the original input, $\mathbf{x} \approx f_\theta(g_\phi(\mathbf{x}))$, or in other words, to learn an identity function. There are various metrics to quantify the difference between two vectors, such as cross entropy when the activation function is sigmoid, or as simple as MSE loss:
+The parameters $(\theta, \phi)$ are learned together to output a
+reconstructed data sample same as the original input,
+$\mathbf{x} \approx f_\theta(g_\phi(\mathbf{x}))$, or in other words, to
+learn an identity function. There are various metrics to quantify the
+difference between two vectors, such as cross entropy when the
+activation function is sigmoid, or as simple as MSE loss: \$\$
+L\_\text{AE}(\theta, \phi) = \frac{1}{n}\sum*{i=1}\^n
+(*\mathbf{x}\^{(i)} - f\theta(g\_\phi(\mathbf{x}^{(i)})))^2
+
 $$
-L_\text{AE}(\theta, \phi) = \frac{1}{n}\sum_{i=1}^n (\mathbf{x}^{(i)} - f_\theta(g_\phi(\mathbf{x}^{(i)})))^2
-$$
 
-- $L_\text{MSE}(\theta ,\phi)$ represents the reconstruction loss.
-- $\theta$ and $\phi$ are the parameters of the decoder and encoder, respectively.
-- n is the number of samples.
-- $x^{(i)}$ is the original input image.
-- $f_\theta$ is the decoder function, and $g_\phi$ is the encoder function.
+$$ - $L_\text{MSE}(\theta ,\phi)$ represents the reconstruction loss. -
+$\theta$ and $\phi$ are the parameters of the decoder and encoder,
+respectively. - n is the number of samples. - $x^{(i)}$ is the original
+input image. - $f_\theta$ is the decoder function, and $g_\phi$ is the
+encoder function. \$\$
 
-### 2.2 Variational Auto-Encoder (VAE)
+### Variational Auto-Encoder (VAE)
 
-Autoencoders(AE) are useful for data compression, denoising or feature extraction. These are deterministic models where the input is mapped to a deterministic latent vector. Given the same input, the encoder will always produce the same point in the latent space. AE cannot generate new data due to the absence of regularity in the latent space which results in lack of continuation in interpolation of data points not in the input sequence. 
+Autoencoders(AE) are useful for data compression, denoising or feature
+extraction. These are deterministic models where the input is mapped to
+a deterministic latent vector. Given the same input, the encoder will
+always produce the same point in the latent space. AE cannot generate
+new data due to the absence of regularity in the latent space which
+results in lack of continuation in interpolation of data points not in
+the input sequence.
 
-To address this issue, Variational Autoencoders (VAEs) offer a solution by imposing additional constraints on the latent space. The idea of Variational Autoencoder[@kingma2013auto], short for VAE, is actually less similar to the autoencoder model above, but deeply rooted in the methods of variational bayesian and graphical model.
+To address this issue, Variational Autoencoders (VAEs) offer a solution
+by imposing additional constraints on the latent space. The idea of
+Variational Autoencoder[@kingma2013auto], short for VAE, is actually
+less similar to the autoencoder model above, but deeply rooted in the
+methods of variational bayesian and graphical model.
 
-VAEs ensure continuous latent spaces, facilitating random sampling and interpolation, making them invaluable for generative modeling. This continuity ensures that small changes in the latent space result in coherent changes in the generated data, making VAEs suitable for tasks like interpolation between data points. Additionally, the probabilistic nature of VAEs introduces a level of randomness that can benefit generative tasks, allowing the model to produce diverse outputs.
+VAEs ensure continuous latent spaces, facilitating random sampling and
+interpolation, making them invaluable for generative modeling. This
+continuity ensures that small changes in the latent space result in
+coherent changes in the generated data, making VAEs suitable for tasks
+like interpolation between data points. Additionally, the probabilistic
+nature of VAEs introduces a level of randomness that can benefit
+generative tasks, allowing the model to produce diverse outputs.
 
+VAEs are probabilistic generative models of independent, identically
+distributed samples, ${x_1,…,x_n}$. In this model, each sample, $x_i$,
+is associated with a latent (i.e. unobserved), lower-dimensional
+variable $z_i$. Variational autoencoders are a generative model in that
+they describe a joint distribution over samples and their associated
+latent variable, $p(x,z)$
 
-VAEs are probabilistic generative models of independent, identically distributed samples, ${x_1,…,x_n}$. In this model, each sample, $x_i$, is associated with a latent (i.e. unobserved), lower-dimensional variable $z_i$. Variational autoencoders are a generative model in that they describe a joint distribution over samples and their associated latent variable, $p(x,z)$
+:::: figure
+![](images/VAE_as_autoencoder.png){width="80%"}
 
-
-::: {.figure}
-![](images/VAE_as_autoencoder.png){width=100%}
-
-<div style="text-align: left; position: relative;">
-  <span class="caption">Figure 2: Variational Autoencoder</span>
-  <span style="position: absolute; right: 0;">*Source:* [@noauthor_variational_2023] </span>
-</div>
+::: {style=""}
+[Figure 2: Variational Autoencoder]{.caption} [*Source:*
+[@noauthor_variational_2023]]{style="position: absolute; right: 0;"}
 :::
+::::
 
-The conditional probability $f_\theta(\mathbf{x} \vert \mathbf{z})$ defines a generative model, similar to the decoder $f_\theta(\mathbf{x} \vert \mathbf{z})$  introduced above in Figure1. $f_\theta(\mathbf{x} \vert \mathbf{z})$  is also known as probabilistic decoder.
-The approximation function $h_\phi(\mathbf{z} \vert \mathbf{x})$  is the probabilistic encoder, playing a similar role as $g_\phi(\mathbf{z} \vert \mathbf{x})$ above in Figure 1.
- 
-### 2.3 Reparameterization Trick
+The conditional probability $f_\theta(\mathbf{x} \vert \mathbf{z})$
+defines a generative model, similar to the decoder
+$f_\theta(\mathbf{x} \vert \mathbf{z})$ introduced above in Figure1.
+$f_\theta(\mathbf{x} \vert \mathbf{z})$ is also known as probabilistic
+decoder. The approximation function
+$h_\phi(\mathbf{z} \vert \mathbf{x})$ is the probabilistic encoder,
+playing a similar role as $g_\phi(\mathbf{z} \vert \mathbf{x})$ above in
+Figure 1.
 
-The encoder produces a Gausssian distribution’s parameters (mean and variance), and the actual latent representation is sampled from this distribution. The essence of the trick lies in introducing an auxiliary random variable, typically drawn from a standard normal distribution.
- 
-::: {.figure}
-![](images/reparam-vae.jpg){width=100%}
+### Reparameterization Trick
 
-<div style="text-align: center; position: relative;">
-  <span class="caption">Figure 3: Reparameterization Trick</span>
-  <span style="position: absolute; right: 0;">*Source:* [@sharma_deep_2023] </span>
-</div>
+The encoder produces a Gausssian distribution’s parameters (mean and
+variance), and the actual latent representation is sampled from this
+distribution. The essence of the trick lies in introducing an auxiliary
+random variable, typically drawn from a standard normal distribution.
+
+:::: figure
+![](images/reparam-vae.jpg){width="80%"}
+
+::: {style="text-align: center; position: relative;"}
+[Figure 3: Reparameterization Trick]{.caption} [*Source:*
+[@sharma_deep_2023]]{style="position: absolute; right: 0;"}
 :::
+::::
 
 Mathematically, the latent distribution can be represented as:
 
 $$Z = Z_\mu + Z_\sigma \odot \varepsilon$$
 
-Here, $\varepsilon$ is sampled from a standard normal distribution, that is, $\varepsilon \sim \mathcal{N}(0, 1)$. The symbol $\odot$ stands for element-wise multiplication.
+Here, $\varepsilon$ is sampled from a standard normal distribution, that
+is, $\varepsilon \sim \mathcal{N}(0, 1)$. The symbol $\odot$ stands for
+element-wise multiplication.
 
-### 2.4 Approximate the intractable posterior:
+### Approximate the intractable posterior
 
-VAE approximates $p_{\theta}(x)$ by introducing a variational lower bound. Given the latent variable $z$, VAE attempts to find the model parameter $\theta$ by maximum likelihood method. Due to the latent variable $z$ affecting data $x$, maximum a posteriori with a prior knowledge of $z$ must be considered instead of maximum likelihood. Specifically, VAE estimates posteriori probability $p(z|x)$ with an assumption of a prior knowledge $p(z)$ being a normal Gaussian distribution and drives the approximating model $Q_{\phi}(z\vert x)$ to approximate real (otherwise, intractable) posteriori probability $p(z|x)$.
+VAE approximates $p_{\theta}(x)$ by introducing a variational lower
+bound. Given the latent variable $z$, VAE attempts to find the model
+parameter $\theta$ by maximum likelihood method. Due to the latent
+variable $z$ affecting data $x$, maximum a posteriori with a prior
+knowledge of $z$ must be considered instead of maximum likelihood.
+Specifically, VAE estimates posteriori probability $p(z|x)$ with an
+assumption of a prior knowledge $p(z)$ being a normal Gaussian
+distribution and drives the approximating model $Q_{\phi}(z\vert x)$ to
+approximate real (otherwise, intractable) posteriori probability
+$p(z|x)$.
 
-::: {.figure}
-![](images/VAE-graphical-model.png){width=100%}
+:::: figure
+![](images/VAE-graphical-model.png){width="70%"}
 
-<div style="text-align: center; position: relative;">
-  <span class="caption">Figure 4: VAE graphical model</span>
-  <span style="position: absolute; right: 0;">*Source:* [@weng2018vae]</span>
-</div>
+::: {style=""}
+[Figure 4: VAE graphical model]{.caption} [*Source:*
+[@weng2018vae]]{style="position: absolute; right: 0;"}
 :::
+::::
 
-Intuitively, $Q_{\phi}(z\vert x)$ is an encoder which generates the latent variable $z$ given sample $x$; while $p_{\theta}(x\vert z)$ is a decoder which generates samples $x$ given latent variable $z$.
- 
- 
-**2.4.1 Kullback-Leibler (KL) Divergence:** 
+Intuitively, $Q_{\phi}(z\vert x)$ is an encoder which generates the
+latent variable $z$ given sample $x$; while $p_{\theta}(x\vert z)$ is a
+decoder which generates samples $x$ given latent variable $z$.
 
-The Kullback–Leibler (KL) divergence (also called relative entropy and I-divergence[1]), denoted $D_{KL}(P∥Q)$ is a type of statistical distance: a measure of how much a model probability distribution $Q$ is different from a true probability distribution $P$. 
+**2.4.1 Kullback-Leibler (KL) Divergence:**
+
+The Kullback–Leibler (KL) divergence (also called relative entropy and
+I-divergence\[1\]), denoted $D_{KL}(P∥Q)$ is a type of statistical
+distance: a measure of how much a model probability distribution $Q$ is
+different from a true probability distribution $P$.
 
 Mathematically, it is defined as
 
-
 $${\displaystyle D_{\text{KL}}(P\parallel Q)=\sum _{x\in {\mathcal {X}}}P(x)\,\log {\frac {P(x)}{Q(x)}}{\text{.}}}$$
 
-This term ensures that the learned distribution in the latent space is close to a prior distribution, usually a standard Gaussian. It acts as a regularizer, preventing the model from encoding too much information in the latent space and ensuring smoothness in the latent space.
+This term ensures that the learned distribution in the latent space is
+close to a prior distribution, usually a standard Gaussian. It acts as a
+regularizer, preventing the model from encoding too much information in
+the latent space and ensuring smoothness in the latent space.
 
-
-In Variational Autoencoders (VAEs), we use the reverse KL divergence (also called the KL divergence from the approximate posterior to the prior, $\text{KL}\left(Q_{\phi}(z\vert x)\Vert p_{\theta}(z)\right)$ rather than the forward KL divergence $\text{KL}\left(p_{\theta}(z)\Vert Q_{\phi}(z\vert x)\right)$ because the forward KL divergence would require sampling from the true (but unknown) posterior $p_\theta(z|x)$ which is intractable.
-
+In Variational Autoencoders (VAEs), we use the reverse KL divergence
+(also called the KL divergence from the approximate posterior to the
+prior, $\text{KL}\left(Q_{\phi}(z\vert x)\Vert p_{\theta}(z)\right)$
+rather than the forward KL divergence
+$\text{KL}\left(p_{\theta}(z)\Vert Q_{\phi}(z\vert x)\right)$ because
+the forward KL divergence would require sampling from the true (but
+unknown) posterior $p_\theta(z|x)$ which is intractable.
 
 **2.4.2 Variational/Evidence Lower Bound (ELBO)**
 
-The Variational Lower Bound $\mathcal{L}(\theta, \phi; \mathbf{x})$, also called the Evidence Lower Bound (ELBO), is the objective function used to train Variational Autoencoders (VAEs). It provides a tractable approximation to the intractable true posterior $p_\theta(\mathbf{z}|\mathbf{x})$.
+The Variational Lower Bound $\mathcal{L}(\theta, \phi; \mathbf{x})$,
+also called the Evidence Lower Bound (ELBO), is the objective function
+used to train Variational Autoencoders (VAEs). It provides a tractable
+approximation to the intractable true posterior
+$p_\theta(\mathbf{z}|\mathbf{x})$.
 
-
-As shown by [@zhai2018autoencoder], a variational lower bound of the marginal log-likelihood $\log p_{\theta}(x)$ can be derived as follows:
+As shown by [@zhai2018autoencoder], a variational lower bound of the
+marginal log-likelihood $\log p_{\theta}(x)$ can be derived as follows:
 
 \begin{align*} \log p_{\theta}(x) & = \int\nolimits_{z} Q_{\phi}(z\vert x)\log p_{\theta}(x)dz\\ & = \int\nolimits_{z} Q_{\phi}(z\vert x)\log\left(\frac{p_{\theta}(x, z) Q_{\phi}(z\vert x)}{p_{\theta}(z\vert x) Q_{\phi}(z\vert x)}\right)dz\\ & = \int\nolimits_{z} Q_{\phi}(z\vert x)\left(\log\left(\frac{Q_{\phi}(z\vert x)}{p_{\theta}(z\vert x)}\right)+\log\left(\frac{p_{\theta}(x, z)}{Q_{\phi}(z\vert x)}\right)\right)dz\\ & =\text{KL}(Q_{\phi}(z\vert x)\Vert p_{\theta}(z\vert x))+\mathrm{E}_{Q_{\phi}(z\vert x)} \left[\frac{\log p_{\theta}(x, z)}{\log Q_{\phi}(z\vert x)}\right] \end{align*}
 
-
-Since $\text{KL}\left(Q_{\phi}(z\vert x)\Vert p_{\theta}(z\vert x)\right)\geq 0$, variational lower bound $L(\theta,\phi;x)$ can be formulated as:
+Since
+$\text{KL}\left(Q_{\phi}(z\vert x)\Vert p_{\theta}(z\vert x)\right)\geq 0$,
+variational lower bound $L(\theta,\phi;x)$ can be formulated as:
 
 \begin{align*} \log\ p_{\theta}(x) & \geq E_{Q_{\phi}(z\vert x)}[\log p_{\theta}(x, z)-\log Q_{\phi}(z\vert x)]\\ & = E_{Q_{\phi}(z\vert x)}[\log p_{\theta}(z)-\log p_{\theta}(x\vert z)-\log Q_{\phi}(z\vert x)]\\ & =-KL(Q_{\phi}(z\vert x)\Vert p_{\theta}(z))+ E_{Q_{\phi}(z\vert x)}[\log p_{\theta}(z\vert x)]\\ & =L(\theta,\phi;x) \end{align*}
 
-
-
-Since KL divergence $\geq 0$:
-$$
+Since KL divergence $\geq 0$: $$
 \log p_\theta(\mathbf{x}) \geq \mathcal{L}(\theta, \phi; \mathbf{x})
-$$
-Maximizing $\mathcal{L}(\theta, \phi; \mathbf{x})$ indirectly maximizes 
-$\log p_\theta(\mathbf{x})$
+$$ Maximizing $\mathcal{L}(\theta, \phi; \mathbf{x})$ indirectly
+maximizes $\log p_\theta(\mathbf{x})$
 
 The ELBO is defined as:
 
@@ -257,71 +419,86 @@ $$
 
 where:
 
-- $\mathbf{x}$: Observed data (e.g., an image)
-- $\mathbf{z}$: Latent variable
-- $q_\phi(\mathbf{z}|\mathbf{x})$: Approximate posterior (encoder)
-- $p_\theta(\mathbf{x}|\mathbf{z})$: Likelihood (decoder)
-- $p_\theta(\mathbf{z})$: Prior over latents (typically $\mathcal{N}(0, I)$)
-
+-   $\mathbf{x}$: Observed data (e.g., an image)
+-   $\mathbf{z}$: Latent variable
+-   $q_\phi(\mathbf{z}|\mathbf{x})$: Approximate posterior (encoder)
+-   $p_\theta(\mathbf{x}|\mathbf{z})$: Likelihood (decoder)
+-   $p_\theta(\mathbf{z})$: Prior over latents (typically
+    $\mathcal{N}(0, I)$)
 
 The VAE loss function has two components:
 
-**The Reconstruction Term:**
-$$
+**The Reconstruction Term:** $$
 \mathbb{E}_{q_\phi(\mathbf{z}|\mathbf{x})} \left[ \log p_\theta(\mathbf{x}|\mathbf{z}) \right]
-$$
-This measures how well the decoder reconstructs $\mathbf{x}$ from $\mathbf{z}$
-and it is similar to an autoencoder's reconstruction loss. This can also be written as:
+$$ This measures how well the decoder reconstructs $\mathbf{x}$ from
+$\mathbf{z}$ and it is similar to an autoencoder's reconstruction loss.
+This can also be written as:
 
 $$L_\text{MSE}(\theta,\phi) = \displaystyle\frac{1}{N}\sum_{i=1}^{N}{\left(x_i -f_\theta (g_\phi (x_i))\right)^2}$$
 
-**The Regularization Term (KL-divergence):**
-$$
+**The Regularization Term (KL-divergence):** $$
 \text{KL}\left( q_\phi(\mathbf{z}|\mathbf{x}) \parallel p_\theta(\mathbf{z}) \right)
-$$
-This penalizes deviations from the prior and ensures a structured latent space. This can also be written as:
+$$ This penalizes deviations from the prior and ensures a structured
+latent space. This can also be written as:
 
 $$L_\text{KL}[G(Z_{\mu}, Z_{\sigma})  |  \mathcal{N}(0, 1)] = -0.5 * \sum_{i=1}^{N}{1 + \log(Z_{\sigma_{i}^2}) - Z_{\mu_{i}}^2 -  Z_{\sigma_{i}}^2}$$
 
-- $L_\text{KL}$ represents the KL divergence loss.
-- $G(Z_{\mu}, Z_{\sigma})$ is the Gaussian distribution defined by the encoder’s outputs $Z_{\mu}$ (mean) and $Z_{\sigma}$ (standard deviation).
-- $\mathcal{N}(0, 1)$ is the standard normal distribution.
-- The formula calculates the difference between the encoder’s distribution and the standard normal distribution for each sample and sums these differences.
+-   $L_\text{KL}$ represents the KL divergence loss.
+-   $G(Z_{\mu}, Z_{\sigma})$ is the Gaussian distribution defined by the
+    encoder’s outputs $Z_{\mu}$ (mean) and $Z_{\sigma}$ (standard
+    deviation).
+-   $\mathcal{N}(0, 1)$ is the standard normal distribution.
+-   The formula calculates the difference between the encoder’s
+    distribution and the standard normal distribution for each sample
+    and sums these differences.
 
-
-The combined VAE loss is a weighted sum of the reconstruction and KL divergence losses:
+The combined VAE loss is a weighted sum of the reconstruction and KL
+divergence losses:
 
 $$\mathcal{L}_\text{VAE} = \mathcal{L}_\text{recon} + \mathcal{L}_\text{KL}$$
 
-::: {.figure}
-![](images/loss.png){width=100%}
+:::: figure
+![](images/loss.png){width="70%"}
 
-<div style="text-align: left; position: relative;">
-  <span class="caption">Figure 5: VAE Objective</span>
-  <span style="position: absolute; right: 0;">*Source:* [@noauthor_reparameterization_nodate]</span>
-</div>
+::: {style=""}
+[Figure 5: VAE Objective]{.caption} [*Source:*
+[@noauthor_reparameterization_nodate]]{style="position: absolute; right: 0;"}
 :::
+::::
 
+We want to maximize the (log-)likelihood of generating real data (that
+is $p_\theta(\mathbf{x})$ and also minimize the difference between the
+real and estimated posterior distributions.
 
-We want to maximize the (log-)likelihood of generating real data (that is $p_\theta(\mathbf{x})$ and also minimize the difference between the real and estimated posterior distributions.
+### Generative Adversarial Network (GAN)
 
+Generative Adversarial Networks (GANs) help machines to create new,
+realistic data by learning from existing examples. As
+[@goodfellow2014generative] explained, the GAN model consists of a
+Generator (G) and a Discriminator (D). The generative G captures the
+data distribution, and the discriminative D estimates the probability
+that a sample came from the training data rather than G. The training
+procedure for G is to maximize the probability of D making a mistake.
 
-### 2.5 Generative Adversarial Network (GAN)
+This framework corresponds to a minimax two-player game. In the space of
+arbitrary functions G and D, a unique solution exists, with G recovering
+the training data distribution and D equal to 1/2 everywhere. In the
+case where G and D are defined by multilayer perceptrons, the entire
+system can be trained with backpropagation. There is no need for any
+Markov chains or unrolled approximate inference networks during either
+training or generation of samples.
 
-Generative Adversarial Networks (GANs) help machines to create new, realistic data by learning from existing examples. As [@goodfellow2014generative] explained, the GAN model consists of a Generator (G) and a Discriminator (D). The generative G captures the data distribution, and the discriminative D estimates the probability that a sample came from the training data rather than G. The training procedure for G is to maximize the probability of D making a mistake.
+:::: figure
+![](images/GAN-model.png){width="60%"}
 
-This framework corresponds to a minimax two-player game. In the space of arbitrary functions G and D, a unique solution exists, with G recovering the training data distribution and D equal to 1/2 everywhere. In the case where G and D are defined  by multilayer perceptrons, the entire system can be trained with backpropagation. There is no need for any Markov chains or unrolled approximate inference networks during either training or generation of samples.
-
-::: {.figure}
-![](images/GAN-model.png){width=100%}
-
-<div style="text-align: left; position: relative;">
-  <span class="caption">Figure 6: Generative Adversarial Network </span>
-  <span style="position: absolute; right: 0;">*Source:* [@zhu2017unpaired] </span>
-</div>
+::: {style=""}
+[Figure 6: Generative Adversarial Network]{.caption} [*Source:*
+[@zhu2017unpaired]]{style="position: absolute; right: 0;"}
 :::
+::::
 
-The Generator's  objective is to produce samples that the discriminator classifies as real. It tries to minimize this loss:
+The Generator's objective is to produce samples that the discriminator
+classifies as real. It tries to minimize this loss:
 
 $$
 J_{G} = -\frac{1}{m} \sum_{i=1}^{m} \log D(G(z_i))
@@ -329,10 +506,10 @@ $$
 
 where:
 
-- $J_{G}$ measures how well the generator is fooling the discriminator
-- $G(z_i)$ is the generated sample from random noise $z_i$
-- $D(G(z_i))$ is the discriminator's estimated probability that the generated sample is real
-
+-   $J_{G}$ measures how well the generator is fooling the discriminator
+-   $G(z_i)$ is the generated sample from random noise $z_i$
+-   $D(G(z_i))$ is the discriminator's estimated probability that the
+    generated sample is real
 
 The discriminator's loss function is given by:
 
@@ -342,12 +519,13 @@ $$
 
 where:
 
-- **$J_{D}$** measures how well the discriminator classifies real and fake samples.
-- **$x_i$** is a real data sample.
-- **$G(z_i)$** is a fake sample generated from random noise $z_i$.
-- **$D(x_i)$** is the discriminator’s probability that $x_i$ is real.
-- **$D(G(z_i))$** is the discriminator’s probability that the fake sample is real.
-
+-   $J_{D}$ measures how well the discriminator classifies real and fake
+    samples.
+-   $x_i$ is a real data sample.
+-   $G(z_i)$ is a fake sample generated from random noise $z_i$.
+-   $D(x_i)$ is the discriminator’s probability that $x_i$ is real.
+-   $D(G(z_i))$ is the discriminator’s probability that the fake sample
+    is real.
 
 **Minimax GAN Loss**
 
@@ -359,58 +537,76 @@ $$
 
 where:
 
-- **$G$** is the generator network (learns to generate fake data).
-- **$D$** is the discriminator network (learns to distinguish real vs. fake).
-- **$p_{\text{data}}(x)$** is the true data distribution.
-- **$p_{z}(z)$** is the noise distribution (typically Gaussian or uniform).
-- **$D(x)$** is the discriminator's probability that input $x$ is real.
-- **$D(G(z))$** is the discriminator's probability that the generator's output is real.
-- **$\mathbb{E}$**  is the Probability expectation
+-   $G$ is the generator network (learns to generate fake data).
+-   $D$ is the discriminator network (learns to distinguish real vs.
+    fake).
+-   $p_{\text{data}}(x)$ is the true data distribution.
+-   $p_{z}(z)$ is the noise distribution (typically Gaussian or
+    uniform).
+-   $D(x)$ is the discriminator's probability that input $x$ is real.
+-   $D(G(z))$ is the discriminator's probability that the generator's
+    output is real.
+-   $\mathbb{E}$ is the Probability expectation
 
-The generator ($G$) tries to minimize $\log(1 - D(G(z)))$ (i.e., make fake data indistinguishable).
+The generator ($G$) tries to minimize $\log(1 - D(G(z)))$ (i.e., make
+fake data indistinguishable).
 
 The discriminator ($D$) tries to maximize:
 
-  - $\log D(x)$ (correctly classify real data), and
-  
-  - $\log (1 - D(G(z)))$ (correctly reject fake data).
+-   $\log D(x)$ (correctly classify real data), and
 
-### 2.6 Cycle GAN
-CycleGAN builds upon the GAN framework, employing two GANs instead of one. Unlike traditional GANs, CycleGAN takes user-provided images as input rather than random noise, improving user control, resolution, and output quality.
+-   $\log (1 - D(G(z)))$ (correctly reject fake data).
 
-The goal of CycleGAN is to learn mapping functions between two domains $X$ and $Y$ given training samples $\{x_i\}_{i=1}^N$ where $x_i \in X$ and $\{y_j\}_{j=1}^M$ where $y_j \in Y$. As [@zhu2017unpaired] showed, CycleGAN model includes two mapping functions $G: X → Y$ and $F: Y → X$ , and associated adversarial discriminators $Dₓ$ and $Dᵧ$. The discriminator,$Dᵧ$ encourages the generator $G$ to translate $X$ into outputs indistinguishable from domain $Y$ ; in the same way, $Dₓ$ encourages the generator $F$ to translate $Y$ into outputs indistinguishable from domain $X$.
+### Cycle GAN
 
+CycleGAN builds upon the GAN framework, employing two GANs instead of
+one. Unlike traditional GANs, CycleGAN takes user-provided images as
+input rather than random noise, improving user control, resolution, and
+output quality.
 
-::: {.figure}
-![](images/cycleGAN-model.png){width=100%}
+The goal of CycleGAN is to learn mapping functions between two domains
+$X$ and $Y$ given training samples $\{x_i\}_{i=1}^N$ where $x_i \in X$
+and $\{y_j\}_{j=1}^M$ where $y_j \in Y$. As [@zhu2017unpaired] showed,
+CycleGAN model includes two mapping functions $G: X → Y$ and $F: Y → X$
+, and associated adversarial discriminators $Dₓ$ and $Dᵧ$. The
+discriminator,$Dᵧ$ encourages the generator $G$ to translate $X$ into
+outputs indistinguishable from domain $Y$ ; in the same way, $Dₓ$
+encourages the generator $F$ to translate $Y$ into outputs
+indistinguishable from domain $X$.
 
-<div style="text-align: left; position: relative;">
-  <span class="caption">Figure 7: Cycle GAN Model </span>
-  <span style="position: absolute; right: 0;">*Source:* [@zhu2019brief] </span>
-</div>
+:::: figure
+![](images/cycleGAN-model.png){width="50%"}
+
+::: {style=""}
+[Figure 7: Cycle GAN Model]{.caption} [*Source:*
+[@zhu2019brief]]{style="position: absolute; right: 0;"}
 :::
+::::
 
-The objective contains two types of losses (for the two mapping functions and their corresponding discriminators):
-- adversarial losses for matching the distribution of generated images to the data distribution in the target domain; and 
-- cycle consistency losses to prevent the learned mappings $G$ and $F$ from contradicting each other.
+The objective contains two types of losses (for the two mapping
+functions and their corresponding discriminators): - adversarial losses
+for matching the distribution of generated images to the data
+distribution in the target domain; and - cycle consistency losses to
+prevent the learned mappings $G$ and $F$ from contradicting each other.
 
-::: {.figure}
-![](images/cycle-loss.png){width=100%}
+:::: figure
+![](images/cycle-loss.png){width="100%"}
 
-<div style="text-align: left; position: relative;">
-  <span class="caption">Figure 8: Cycle GAN with Cycle Consistency Loss </span>
-  <span style="position: absolute; right: 0;">*Source:* [@zhu2019brief] </span>
-</div>
+::: {style=""}
+[Figure 8: Cycle Consistency Loss]{.caption} [*Source:*
+[@zhu2019brief]]{style="position: absolute; right: 0;"}
 :::
+::::
 
 **Adversarial Losses**
 
-For the mapping function $G : X → Y$ and its discriminator $Dᵧ$, we express the objective as:
+For the mapping function $G : X → Y$ and its discriminator $Dᵧ$, we
+express the objective as:
 
 $$
 L_{\text{GAN}}(G, D_Y, X, Y) = \mathbb{E}_{y \sim p_{\text{data}}(y)} [\log D_Y(y)] + \mathbb{E}_{x \sim p_{\text{data}}(x)} [\log(1 - D_Y(G(x)))]
-$$
-Similarly, for the mapping function $F : Y → X$ and its discriminator $Dₓ$, we express the objective as:
+$$ Similarly, for the mapping function $F : Y → X$ and its discriminator
+$Dₓ$, we express the objective as:
 
 $$
 L_{\text{GAN}}(F, D_X, X, Y) = \mathbb{E}_{x \sim p_{\text{data}}(x)} [\log D_X(x)] + \mathbb{E}_{y \sim p_{\text{data}}(y)} [\log(1 - D_X(G(y)))]
@@ -418,54 +614,59 @@ $$
 
 **Cycle Consistency Losses**
 
-To further regularize the mappings, two cycle consistency losses are introduced that capture the intuition that if we translate from one domain to the other and back again we should arrive at where we started. 
+To further regularize the mappings, two cycle consistency losses are
+introduced that capture the intuition that if we translate from one
+domain to the other and back again we should arrive at where we started.
 
-Below, the Figure 8: (b) shows forward cycle-consistency loss: for each image x from domain $X$, the image translation cycle should be able to bring $x$ back to the original image, i.e.,$x → G(x) → F(G(x)) ≈ x$. Similarly, the Figure 8: (c) shows  backward cycle-consistency loss: for each image $y$ from domain $Y$ , $G$ and $F$ should also satisfy backward cycle consistency:$y → F(y) → G(F(y)) ≈ y$
-
+Below, the Figure 8: (b) shows forward cycle-consistency loss: for each
+image x from domain $X$, the image translation cycle should be able to
+bring $x$ back to the original image, i.e.,$x → G(x) → F(G(x)) ≈ x$.
+Similarly, the Figure 8: (c) shows backward cycle-consistency loss: for
+each image $y$ from domain $Y$ , $G$ and $F$ should also satisfy
+backward cycle consistency:$y → F(y) → G(F(y)) ≈ y$
 
 \begin{align*}
 L_{\text{cyc}}(G, F) &= \mathbb{E}_{x \sim p_{\text{data}}(x)} [\|F(G(x)) - x\|_1] \\
 &\quad + \mathbb{E}_{y \sim p_{\text{data}}(y)} [\|G(F(y)) - y\|_1]
 \end{align*}
-    
+
 **Full Objective**
 
-The full objective can be written as:
-\begin{align*}
+The full objective can be written as: \begin{align*}
 L(G, F, D_X, D_Y) &= L_{\text{GAN}}(G, D_Y, X, Y) \\
 &\quad + L_{\text{GAN}}(F, D_X, Y, X) \\
 &\quad + \lambda L_{\text{cyc}}(G, F),
-\end{align*}
-where $\lambda$ controls the relative importance of the two objectives. We aim to solve:
+\end{align*} where $\lambda$ controls the relative importance of the two
+objectives. We aim to solve:
 
 \begin{align*}
 G^*, F^* = \arg \min_{G,F} \max_{D_X,D_Y} L(G, F, D_X, D_Y).
 \end{align*}
 
+### VAE-GAN
 
-### 2.7 VAE-GAN
+By combining a variational autoencoder with a generative adversarial
+network we can use learned feature representations in the GAN
+discriminator as basis for the VAE reconstruction objective.
 
-By combining  a variational autoencoder with a generative adversarial network we can use learned feature representations in the GAN discriminator as basis for the VAE reconstruction objective.
+We collapse the VAE decoder and the GAN generator into one by letting
+them share parameters and training them jointly. VAE-GAN learns a
+probabilistic latent space via encoder $q_{\phi}(z\vert x)$.
 
-We collapse the VAE decoder and the GAN generator into one by letting them share parameters and training them jointly. VAE-GAN learns a probabilistic latent space via encoder $q_{\phi}(z\vert x)$.
+:::: figure
+![](images/VAE-GAN.png){width="60%"}
 
-
-::: {.figure}
-![](images/VAE-GAN.png){width=100%}
-
-<div style="text-align: left; position: relative;">
-  <span class="caption">Figure 9: VAE-GAN Model </span>
-  <span style="position: absolute; right: 0;">*Source:* [@razghandi2022variational] </span>
-</div>
+::: {style=""}
+[Figure 9: VAE-GAN Model]{.caption} [*Source:*
+[@razghandi2022variational]]{style="position: absolute; right: 0;"}
 :::
+::::
 
-
-The loss function $\mathcal{L}$ for training VAE-GAN model is defined as a combination of VAE loss $\mathcal{L}_{\text{VAE}}$ and GAN loss $\mathcal{L}_{\text{GAN}}$
-
+The loss function $\mathcal{L}$ for training VAE-GAN model is defined as
+a combination of VAE loss $\mathcal{L}_{\text{VAE}}$ and GAN loss
+$\mathcal{L}_{\text{GAN}}$
 
 $$\mathcal{L} = \mathcal{L}_{\text{VAE}} + \mathcal{L}_{\text{GAN}}$$
-
-
 
 \begin{align*}
 \mathcal{L}_{\text{VAE-GAN}}(x) &= \underbrace{\mathbb{E}_{q_\phi(z|x)}[\log p_\theta(x|z)] - \beta D_{\text{KL}}(q_\phi(z|x) \parallel p(z))}_{\text{VAE Loss (Reconstruction + KL Divergence)}} \\
@@ -474,62 +675,77 @@ $$\mathcal{L} = \mathcal{L}_{\text{VAE}} + \mathcal{L}_{\text{GAN}}$$
 
 where:
 
-- $x$: Input data sample  
-- $z$: Latent variable  
-- $q_\phi(z|x)$: approximate posterior of the Encoder with parameters $\phi$  
-- $p_\theta(x|z)$: Decoder (generative model) with parameters $\theta$  
-- $p(z)$: Prior distribution over latent space typically $\mathcal{N}(0,I)$ 
-- $D_{\text{KL}}(q \parallel p)$: Kullback-Leibler divergence between distributions $q$ and $p$
-- $D$: Discriminator network  
-- $G$: Generator/decoder network shared with VAE decoder  
-- $\beta$: Weight for KL divergence term which controls disentanglement  
-- $\lambda$: Weight for adversarial loss (balances VAE and GAN objectives)
-- $\mathbb{E}$: Probability Expectation 
+-   $x$: Input data sample\
+-   $z$: Latent variable\
+-   $q_\phi(z|x)$: approximate posterior of the Encoder with parameters
+    $\phi$\
+-   $p_\theta(x|z)$: Decoder (generative model) with parameters
+    $\theta$\
+-   $p(z)$: Prior distribution over latent space typically
+    $\mathcal{N}(0,I)$
+-   $D_{\text{KL}}(q \parallel p)$: Kullback-Leibler divergence between
+    distributions $q$ and $p$
+-   $D$: Discriminator network\
+-   $G$: Generator/decoder network shared with VAE decoder\
+-   $\beta$: Weight for KL divergence term which controls
+    disentanglement\
+-   $\lambda$: Weight for adversarial loss (balances VAE and GAN
+    objectives)
+-   $\mathbb{E}$: Probability Expectation
 
-### 2.8 VAE-CycleGAN
+### VAE-CycleGAN
 
-The composite architecture of VAE integrated with CycleGAN is given below.
+The composite architecture of VAE integrated with CycleGAN is given
+below.
 
-::: {.figure}
-![](images/VAE-CycleGAN.png){width=100%}
+:::: figure
+![](images/VAE-CycleGAN.png){width="100%"}
 
-<div style="text-align: center; position: relative;">
-  <span class="caption">Figure 10: VAE-CycleGAN Model </span>
-</div>
+::: {style="text-align: center; position: relative;"}
+[Figure 10: VAE-CycleGAN Model]{.caption}
 :::
+::::
 
-- ${(x_1, ..., x_n)}$: Input data distribution for the Generator 1 ($x\to y$)
-- ${(y_1, ..., y_n)}$: Input data distribution for the Generator 2 ($y \to x$)
+-   ${(x_1, ..., x_n)}$: Input data distribution for the Generator 1
+    ($x\to y$)
 
-- ${(p_1,..., p_n)}$ and ${(q_1,..., q_n)}$: Translated/generated images  
+-   ${(y_1, ..., y_n)}$: Input data distribution for the Generator 2
+    ($y \to x$)
 
-The loss function $\mathcal{L}$ for training VAE-CycleGAN model is defined as a four key components:
+-   ${(p_1,..., p_n)}$ and ${(q_1,..., q_n)}$: Translated/generated
+    images
+
+The loss function $\mathcal{L}$ for training VAE-CycleGAN model is
+defined as a four key components:
 
 $$
 \mathcal{L}_{\text{Total}} = \underbrace{\mathcal{L}_{\text{VAE}}}_{\text{Probabilistic Encoding}} + \underbrace{\mathcal{L}_{\text{GAN}}}_{\text{Adversarial}} + \underbrace{\lambda_{\text{cyc}}\mathcal{L}_{\text{cycle}}}_{\text{Domain Consistency}} + \underbrace{\lambda_{\text{id}}\mathcal{L}_{\text{identity}}}_{\text{Content Preservation}}
 $$
 
-
-**VAE Loss** 
+**VAE Loss**
 
 The VAE loss consists of two main components:
 
-1. Reconstruction Loss: It measures how well the decoder reconstructs the input data. Since we are not reconstructing the input with a decoder and the generated output is not paired (no deterministic real value to compare with), we do not consider this.
-2. KL Divergence Loss: It regularizes the latent space by encouraging the encoder's distribution $q(z|x)$ to match the prior $p(z)$ (usually standard normal)
-\begin{align*}
-\mathcal{L}_{\text{VAE}}^X &= \mathbb{E}_{q_ϕ(z|x)}\left[\log p_θ(x|z)\right] - \beta D_{\text{KL}}(q_ϕ(z|x) \parallel p(z)) \\
-\mathcal{L}_{\text{VAE}}^Y &= \mathbb{E}_{q_ϕ(z|y)}\left[\log p_θ(y|z)\right] - \beta D_{\text{KL}}(q_ϕ(z|y) \parallel p(z))
-\end{align*}
+1.  Reconstruction Loss: It measures how well the decoder reconstructs
+    the input data. Since we are not reconstructing the input with a
+    decoder and the generated output is not paired (no deterministic
+    real value to compare with), we do not consider this.
+2.  KL Divergence Loss: It regularizes the latent space by encouraging
+    the encoder's distribution $q(z|x)$ to match the prior $p(z)$
+    (usually standard normal) \begin{align*}
+    \mathcal{L}_{\text{VAE}}^X &= \mathbb{E}_{q_ϕ(z|x)}\left[\log p_θ(x|z)\right] - \beta D_{\text{KL}}(q_ϕ(z|x) \parallel p(z)) \\
+    \mathcal{L}_{\text{VAE}}^Y &= \mathbb{E}_{q_ϕ(z|y)}\left[\log p_θ(y|z)\right] - \beta D_{\text{KL}}(q_ϕ(z|y) \parallel p(z))
+    \end{align*}
 
-**Adversarial Loss** 
+**Adversarial Loss**
 
-It is standard GAN loss making generated images indistinguishable from real ones
+It is standard GAN loss making generated images indistinguishable from
+real ones
 
 \begin{align*}
 \mathcal{L}_{\text{GAN}}^{X→Y} &= \mathbb{E}_{y \sim p_{\text{data}}(y)}[\log D_ϕ(y)] + \mathbb{E}_{x \sim p_{\text{data}}(x)}[\log(1 - D_ϕ(G_θ(x))] \\
 \mathcal{L}_{\text{GAN}}^{Y→X} &= \mathbb{E}_{x \sim p_{\text{data}}(x)}[\log D_ϕ(x)] + \mathbb{E}_{y \sim p_{\text{data}}(y)}[\log(1 - D_ϕ(G_θ(y))]
 \end{align*}
-
 
 **Cycle consistency Loss**
 
@@ -542,84 +758,113 @@ It ensures forward and backward cycles reconstruct original images
 
 **Identity Loss**
 
-It ensures the generator to preserve the input's identity when the input is already from the target domain.
- 
+It ensures the generator to preserve the input's identity when the input
+is already from the target domain.
+
 \begin{align*}
 \mathcal{L}_{\text{identity}} &= \mathbb{E}_{x \sim p_{\text{data}}(x)}\left[\|G_θ(x) - x\|_1\right] \\
 &\quad + \mathbb{E}_{y \sim p_{\text{data}}(y)}\left[\|G_θ(y) - y\|_1\right]
 \end{align*}
 
-**Total VAE-CycleGAN Loss**
-\begin{align*}
+**Total VAE-CycleGAN Loss** \begin{align*}
 \mathcal{L}_{\text{Total}} &= \mathcal{L}_{\text{VAE}}^X + \mathcal{L}_{\text{VAE}}^Y \\
 &\quad + \lambda_{\text{GAN}}(\mathcal{L}_{\text{GAN}}^{X→Y} + \mathcal{L}_{\text{GAN}}^{Y→X}) \\
 &\quad + \lambda_{\text{cycle}}\mathcal{L}_{\text{cycle}} \\
 &\quad + \lambda_{\text{id}}\mathcal{L}_{\text{identity}}
 \end{align*}
 
-- $\lambda_{cyc}$: Weight for cycle consistency loss
-- $\lambda_{identity}$: Weight for identity loss
-- $\theta_1$: $\theta$ parameter for Generator 1  
-- $\theta_2$: $\theta$ parameter for Generator 2 
-- all the other parameters are similar to VAE-GAN losses
+-   $\lambda_{cyc}$: Weight for cycle consistency loss
+-   $\lambda_{identity}$: Weight for identity loss
+-   $\theta_1$: $\theta$ parameter for Generator 1\
+-   $\theta_2$: $\theta$ parameter for Generator 2
+-   all the other parameters are similar to VAE-GAN losses
 
+### Metrics
 
-### 2.9 Metrics ###
-
-The key metrics used in image processing and generative models are Mean Squared Error (MSE),  Peak Signal-to-Noise Ratio (PSNR), Structural Similarity Index (SSIM) and Fréchet Inception Distance (FID)
+The key metrics used in image processing and generative models are Mean
+Squared Error (MSE), Peak Signal-to-Noise Ratio (PSNR), Structural
+Similarity Index (SSIM) and Fréchet Inception Distance (FID)
 
 **Mean Squared Error (MSE)**
 
- Measures the average squared difference between the predicted (generated) image and the ground truth (real) image.
+In statistics, the mean squared error (MSE)[@noauthor_mean_2025] or mean squared deviation (MSD) of an estimator measures the average of the squares of the errors—that is, the average squared difference between the estimated values and the true value.
+
+Measures the average squared difference between the predicted (generated) image and the ground truth (real) image. 
 $$
-MSE = \frac{1}{N}\sum_{i=1}^N (y_i - \hat{y}_i)^2
+MSE = \frac{1}{N}\sum_{i=1}^N (Y_i - \hat{Y}_i)^2
 $$
 
 
 where:
 
-- $y_i$ = true pixel value
-- $\hat{y}_i$ = predicted pixel value
-- $N$ = total number of pixels
+-   $Y_i$ = true pixel value
+-   $\hat{Y}_i$ = predicted pixel value
+-   $N$ = total number of pixels
+
 
 **Peak Signal-to-Noise Ratio (PSNR)**
 
-A logarithmic measure of image quality based on MSE, relative to the maximum possible pixel value (e.g., 255 for 8-bit images):
+Peak signal-to-noise ratio (PSNR) [@noauthor_peak_2025] is an engineering term for the ratio between the maximum possible power of a signal and the power of corrupting noise that affects the fidelity of its representation. Because many signals have a very wide dynamic range, PSNR is usually expressed as a logarithmic quantity using the decibel scale.
 
+A logarithmic measure of image quality based on MSE, relative to the maximum possible pixel value (e.g., 255 for 8-bit images):
 
 $$
 PSNR = 10 \cdot \log_{10}\left(\frac{MAX^2}{MSE}\right)
 $$
 
-
 where:
 
-- $MAX$ = maximum possible pixel value (255 for 8-bit images)
+-   $MAX$ = maximum possible pixel value (255 for 8-bit images)
 
-Higher PSNR indicates better quality (common in compression, restoration tasks). Values typically range from 20 dB (poor) to 50 dB (excellent).
+Higher PSNR indicates better quality (common in compression, restoration
+tasks). Values typically range from 20 dB (poor) to 50 dB (excellent).
 
 **Structural Similarity Index (SSIM)**
 
-The Structural Similarity Index (SSIM) is a perceptual metric that quantifies the similarity between two images by comparing their luminance, contrast, and structure. Unlike pixel-based metrics like MSE and PSNR, SSIM aligns better with human perception.
+SSIM [@noauthor_structural_2025]is a perception-based model that considers image degradation as perceived change in structural information, while also incorporating important perceptual phenomena, including both luminance masking and contrast masking terms. This distinguishes from other techniques such as mean squared error (MSE) or peak signal-to-noise ratio (PSNR) that instead estimate absolute errors.
 
-SSIM Formula: For two image patches x and y,
+The SSIM index is calculated between two windows of pixel values x and y of common size, from corresponding locations in two images to be compaired. These SSIM values can be aggregated across the full images by averaging or other variations.
 
+The SSIM between two images $x$ and $y$ is defined as:
 
 $$
-SSIM(x,y) = \frac{(\mu_x^2 + \mu_y^2 + C_1)(\sigma_x^2 + \sigma_y^2 + C_2)}{(2\mu_x\mu_y + C_1)(2\sigma_{xy} + C_2)}
+\text{SSIM}(x, y) = 
+\frac{
+(2\mu_x \mu_y + c_1)(2\sigma_{xy} + c_2)
+}{
+(\mu_x^2 + \mu_y^2 + c_1)(\sigma_x^2 + \sigma_y^2 + c_2)
+}
 $$
 
 where:
-- $\mu_x, \mu_y$ = average pixel intensities (luminance)
-- $\sigma_x, \sigma_y$ = standard deviations (contrast)
-- $\sigma_{xy}$ = covariance (structure)
-- $C_1, C_2$ = small constants to avoid division by zero
 
-**Fréchet Inception Distance (FID)**
-Measures the similarity between two sets of images (real vs. generated) using features extracted from a pre-trained Inception-v3 model.
+\begin{align*}
+\mu_x & = \text{mean of } x \\
+\mu_y & = \text{mean of } y \\
+\sigma_x^2 & = \text{variance of } x \\
+\sigma_y^2 & = \text{variance of } y \\
+\sigma_{xy} & = \text{covariance of } x \text{ and } y \\
+c_1 & = (k_1 L)^2 \\
+c_2 & = (k_2 L)^2
+\end{align*}
+
+\textbf{with:}
+
+\begin{align*}
+L & = \text{dynamic range of pixel values (e.g., 255 for 8-bit images)} \\
+k_1 & = 0.01 \\
+k_2 & = 0.03
+\end{align*}
+
+
+**Fréchet Inception Distance (FID)** 
+
+The FID[@noauthor_frechet_2025] compares the distribution of generated images with the distribution of a set of real images (a "ground truth" set). Rather than comparing individual images, mean and covariance statistics of many images generated by the model are compared with the same statistics generated from images in the ground truth or reference set. A convolutional neural network such as an inception architecture is used to produce higher-level features describing the images, thus leading to the name Fréchet inception distance.
+
+FID measures the similarity between two sets of images (real vs. generated) using features extracted from a
+pre-trained Inception-v3 model.
 
 Computes the Fréchet distance between multivariate Gaussians fitted to the feature distributions:
-
 
 $$
 FID = \|\mu_r - \mu_g\|^2 + Tr(\Sigma_r + \Sigma_g - 2(\Sigma_r \Sigma_g)^{1/2})
@@ -627,84 +872,132 @@ $$
 
 where:
 
-- $\mu_r, \mu_g$ = mean features
-- $\Sigma_r, \Sigma_g$ = covariance matrices
+-   $\mu_r, \mu_g$ = mean features
+-   $\Sigma_r, \Sigma_g$ = covariance matrices
 
+The lower the FID, the better the quality and diversity of generated
+images (closer to real data). FID is typically a standard metric for
+GANs. It correlates well with human perception and captures high-level
+semantics (not just pixels).
 
-The lower the FID, the better the quality and diversity of generated images (closer to real data). FID is typically a standard metric for GANs. It correlates well with human perception and captures high-level semantics (not just pixels). 
+### Convergence
 
+*Why does a neural network trained with cycle loss converge to a single,
+invertible mapping?*
 
-### 2.10 Convergence
+We begin by defining the spaces and mappings relevant to the
+cycle-consistent neural network framework.
 
-*Why does a neural network trained with cycle loss converge to a single, invertible mapping?*
+Let $X$ denote the input domain, where each element $x \in X$ represents
+one of $n$ distinct items (e.g., images), as determined by the
+dimensionality of the input data. Let $Y$ be the target output domain,
+where each $y \in Y$ likewise corresponds to one of $n$ distinct items,
+consistent with the output data dimension.
 
-We begin by defining the spaces and mappings relevant to the cycle-consistent neural network framework.
+Let $f : X \to Z$ denote the forward mapping implemented by the neural
+network, where $Z$ is an intermediate representation space. Let
+$g : Z \to X$ be the inverse mapping used to reconstruct the original
+input from the network's output. In the context of a model trained with
+cycle-consistency loss, we assume the following two properties:
 
-Let $X$ denote the input domain, where each element $x \in X$ represents one of $n$ distinct items (e.g., images), as determined by the dimensionality of the input data. Let $Y$ be the target output domain, where each $y \in Y$ likewise corresponds to one of $n$ distinct items, consistent with the output data dimension.
+1.  $\forall x \in X, \exists g$ such that $g(f(x)) = x \quad (1)$
 
-Let $f : X \to Z$ denote the forward mapping implemented by the neural network, where $Z$ is an intermediate representation space. Let $g : Z \to X$ be the inverse mapping used to reconstruct the original input from the network's output. In the context of a model trained with cycle-consistency loss, we assume the following two properties:
+2.  $Z = Y \quad (2)$
 
-1. $\forall x \in X, \exists g$ such that $g(f(x)) = x \quad (1)$ 
+Equation (1) ensures existence of a cycle-consistent mapping. Equation
+(2) states that the intermediate representation space $Z$ is equivalent
+to the target output domain $Y$, thereby implying that the network
+effectively learns a mapping from $X$ to $Y$.
 
-2. $Z = Y \quad (2)$ 
+Given that $f$ is bijective by Equation (1) and that $|X| = |Y| = n$ by
+Equation (2), it follows that there exist $n!$ possible one-to-one
+mappings (i.e., permutations) between elements of $X$ and $Y$. Although
+many such bijective mappings exist in theory, the cycle-consistency loss
+biases the network toward converging on a single, consistent, and
+invertible transformation that minimizes the reconstruction error.
 
-Equation (1) ensures existence of a cycle-consistent mapping. Equation (2) states that the intermediate representation space $Z$ is equivalent to the target output domain $Y$, thereby implying that the network effectively learns a mapping from $X$ to $Y$.
+Let $f_\theta$ denote the forward neural network (parameterized by
+weights $\theta$) which maps inputs from domain $X$ to outputs in domain
+$Y$. Let $g_\theta$ denote the inverse neural network, also
+parameterized by $\theta$, that attempts to reconstruct the original
+input from the output of $f_\theta$. By Equation (1) and
+$|X| = |Y| = n$, note that $g = f^{-1}$.
 
-Given that $f$ is bijective by Equation (1) and that $|X| = |Y| = n$ by Equation (2), it follows that there exist $n!$ possible one-to-one mappings (i.e., permutations) between elements of $X$ and $Y$. Although many such bijective mappings exist in theory, the cycle-consistency loss biases the network toward converging on a single, consistent, and invertible transformation that minimizes the reconstruction error.
-
-Let $f_\theta$ denote the forward neural network (parameterized by weights $\theta$) which maps inputs from domain $X$ to outputs in domain $Y$. Let $g_\theta$ denote the inverse neural network, also parameterized by $\theta$, that attempts to reconstruct the original input from the output of $f_\theta$. By Equation (1) and $|X| = |Y| = n$, note that $g = f^{-1}$.
-
-The cycle-consistency loss $\mathcal{L}(\theta)$ is defined as the expected reconstruction error between the original input $x$ and its reconstruction $g_\theta(f_\theta(x))$, measured using the squared $L2$ norm:
+The cycle-consistency loss $\mathcal{L}(\theta)$ is defined as the
+expected reconstruction error between the original input $x$ and its
+reconstruction $g_\theta(f_\theta(x))$, measured using the squared $L2$
+norm:
 
 $$\mathcal{L}(\theta) = \mathbb{E}_{x\sim X}\left[\|g_\theta(f_\theta(x)) - x\|_2^2\right] \quad (3)$$
 
-The optimal parameters $\theta^*$ are obtained by minimizing the cycle-consistency loss:
+The optimal parameters $\theta^*$ are obtained by minimizing the
+cycle-consistency loss:
 
 $$\theta^* = \arg\min_\theta \mathcal{L}(\theta) \quad (4)$$
 
 We assume the following about the solution ($\theta^*$) landscape:
 
-1. No local minima exist (i.e., network optimizer will never be stuck at a local minima)
-2. There exists a unique $\theta^*$ such that $\mathcal{L}(\theta^*) < \epsilon$ for some $\epsilon \in \mathbb{R}^\quad (5)$
+1.  No local minima exist (i.e., network optimizer will never be stuck
+    at a local minima)
+2.  There exists a unique $\theta^*$ such that
+    $\mathcal{L}(\theta^*) < \epsilon$ for some
+    $\epsilon \in \mathbb{R}^\quad (5)$
 
-Solution uniqueness is enforced by the neural network's inherent incompleteness: the neural network cannot perfectly reconstruct $x$, i.e.,
+Solution uniqueness is enforced by the neural network's inherent
+incompleteness: the neural network cannot perfectly reconstruct $x$,
+i.e.,
 
 $$\mathcal{L}(\theta) > 0 \quad \forall \theta \quad (6)$$
 
-Since exact recovery is impossible, the model cannot satisfy cycle-consistency for any parameterization/mapping. So, the model will choose the lowest $\theta^*$ as given in Equation (4) for convergence.
+Since exact recovery is impossible, the model cannot satisfy
+cycle-consistency for any parameterization/mapping. So, the model will
+choose the lowest $\theta^*$ as given in Equation (4) for convergence.
 
-Under these assumptions, gradient descent will thus converge to a unique solution $\theta^*$ with corresponding invertible mappings $(f_{\theta^*}, g_{\theta^*})$ between domains $X$ and $Y$.
+Under these assumptions, gradient descent will thus converge to a unique
+solution $\theta^*$ with corresponding invertible mappings
+$(f_{\theta^*}, g_{\theta^*})$ between domains $X$ and $Y$.
 
+## Implementation
 
-## 3 Implementation 
+Our task involves:
 
-Our task involves: 
-
- (1) converting satellite/aerial photos to map-like representations (and vice versa) without requiring paired training data and 
- (2) get a realistic translations or generation of new satellite photos (or maps) that are close to the original real aerial photos (or maps)
+(1) converting satellite/aerial photos to map-like representations (and
+    vice versa) without requiring paired training data and
+(2) get a realistic translations or generation of new satellite photos
+    (or maps) that are close to the original real aerial photos (or
+    maps)
 
 The VAE-CycleGAN is well-suited for this because:
 
-- Satellite images and maps are unpaired and are not exact pixel-aligned pairs.
+-   Satellite images and maps are unpaired and are not exact
+    pixel-aligned pairs.
 
-- Maps require structural consistency like roads, buildings etc. which VAEs help preserve.
+-   Maps require structural consistency like roads, buildings etc. which
+    VAEs help preserve.
 
-- CycleGAN ensures realistic outputs while maintaining geometric integrity.
+-   CycleGAN ensures realistic outputs while maintaining geometric
+    integrity.
 
-The dataset consists of satellite photos and images. The number of samples in the dataset are 1096, each image has the structure of (C, H, W) where:
+The dataset consists of satellite photos and images. The number of
+samples in the dataset are 1096, each image has the structure of (C, H,
+W) where:
 
-- C: the number of input channels
-- H, W:  the height and width of the images
-- all the images have a dimension of (3, 64, 64)
+-   C: the number of input channels
+-   H, W: the height and width of the images
+-   all the images have a dimension of (3, 64, 64)
 
+The configuration parameters used for training the model are given in
+the code below.
 
-The configuration parameters used for training the model are given in the code below.
+:::: code-toggle
+<button class="code-toggle-btn">
 
-<div class="code-toggle">
-  <button class="code-toggle-btn">Configuration Parameters</button>
-  <div class="code-content collapsed">
+Configuration Parameters
 
-```python
+</button>
+
+::: {.code-content .collapsed}
+``` python
 
     'epoch': 0,
     'n_epochs': 601 ,                     # max channels
@@ -726,30 +1019,41 @@ The configuration parameters used for training the model are given in the code b
     'latent_dim': 256,                    # Squashed latent dimension used for VAE
     'n_layers': 2,                        # Number of layers in the generator
     'lambda_kl': 1e-05,                   # KL divergence loss weight for VAE
-
 ```
-  </div>
-</div>
-   
+:::
+::::
 
-### Training Procedure ####
+### Training Procedure
 
-#### 3.1 Input Image transformations####
+#### Input Image transformations
 
-A series of image transformations such as data augmentations and preprocessing steps are typically used when preparing images for training a deep learning model.  Before training the VAE-CycleGAN model, the following transformations are made to the data:
+A series of image transformations such as data augmentations and
+preprocessing steps are typically used when preparing images for
+training a deep learning model. Before training the VAE-CycleGAN model,
+the following transformations are made to the data:
 
-- Resize: Each image is resized 12%  larger than the target height while maintaining aspect ratio.
-- Crop : To add variability in the training data, the resized images are randomly cropped to the target height and width dimensions specified in model configuration parameters 
-- Flip: Randomly flipped the image horizontally with a 50% probability to double the training data effectively (data augmentation).
-- To Tensor: Converted the image from PIL format to a PyTorch Tensor. This method also scaled the  pixel values from [0, 255] to [0, 1]
-- Normalize: Normalized the tensor image with mean 0.5 and standard deviation 0.5 for each channel (RGB) to effectively scale the pixel values from [0, 1] to [-1, 1]
+-   Resize: Each image is resized 12% larger than the target height
+    while maintaining aspect ratio.
+-   Crop : To add variability in the training data, the resized images
+    are randomly cropped to the target height and width dimensions
+    specified in model configuration parameters
+-   Flip: Randomly flipped the image horizontally with a 50% probability
+    to double the training data effectively (data augmentation).
+-   To Tensor: Converted the image from PIL format to a PyTorch Tensor.
+    This method also scaled the pixel values from \[0, 255\] to \[0, 1\]
+-   Normalize: Normalized the tensor image with mean 0.5 and standard
+    deviation 0.5 for each channel (RGB) to effectively scale the pixel
+    values from \[0, 1\] to \[-1, 1\]
 
+:::: code-toggle
+<button class="code-toggle-btn">
 
-<div class="code-toggle">
-  <button class="code-toggle-btn">Image transformations</button>
-  <div class="code-content collapsed">
+Image transformations
 
-```python
+</button>
+
+::: {.code-content .collapsed}
+``` python
 
 # Image transformations
 transforms_ = [
@@ -759,31 +1063,34 @@ transforms_ = [
     transforms.ToTensor(),
     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
 ]
-
 ```
-  </div>
-</div>
-  
-  
+:::
+::::
 
-#### 3.2 Satellite → Map Translation (X → Y) ####
+#### Satellite → Map Translation (X → Y)
 
+![](images/EncoderDecoder.png){width="100%"}
 
-![](images/EncoderDecoder.png){width=100%}
-
-
-The VAE helps in learning a probabilistic latent space that captures meaningful representations of the input data.
+The VAE helps in learning a probabilistic latent space that captures
+meaningful representations of the input data.
 
 **Encoder**
 
-The Encoder E extracts the latent features from satellite images. The high dimensional image with 3 input channels (RGB) and with a spacial dimension of 64x64 is reduced to a latent dimension of 256 channels with a spacial resolution of 16x16. The encoder is used for dimensionality reduction and for feature learning.
-  
+The Encoder E extracts the latent features from satellite images. The
+high dimensional image with 3 input channels (RGB) and with a spacial
+dimension of 64x64 is reduced to a latent dimension of 256 channels with
+a spacial resolution of 16x16. The encoder is used for dimensionality
+reduction and for feature learning.
 
-<div class="code-toggle">
-  <button class="code-toggle-btn">Downsample</button>
-  <div class="code-content collapsed">
-  
-```python
+:::: code-toggle
+<button class="code-toggle-btn">
+
+Downsample
+
+</button>
+
+::: {.code-content .collapsed}
+``` python
 
 class Downsample(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, factor=2):
@@ -807,52 +1114,66 @@ class Downsample(nn.Module):
         x = x.mean(dim=2)  # Average over the group dimension
 
         return y + x  # Add the downsampled skip connection
-
 ```
-  </div>
-</div>
+:::
+::::
 
+Added to down sampling, the encoder also contains the initial
+convolution and the residuals blocks which are explained in detail in
+the section *4 Encoder* below.
 
-Added to down sampling, the encoder also contains the initial convolution and the residuals blocks which are explained in detail  in the section *4 Encoder * below. 
+**Probabilistic sampling**
 
-**Probabilistic sampling **
-
-As explained in the *Methods 2.2* section, the encoder produces a Gausssian distribution’s parameters (mean and variance), and the actual latent representation is sampled from this distribution.
+As explained in the *Methods 2.2* section, the encoder produces a
+Gausssian distribution’s parameters (mean and variance), and the actual
+latent representation is sampled from this distribution.
 
 Satellite image $x$ → Encoder $E(x)$ → Latent $z$
 
+:::: code-toggle
+<button class="code-toggle-btn">
 
+Probabilistic sampling
 
-<div class="code-toggle">
-  <button class="code-toggle-btn">Probabilistic sampling </button>
-  <div class="code-content collapsed">
-  
-```python
+</button>
+
+::: {.code-content .collapsed}
+``` python
         # normal distribution
         groups = 1
         self.fc_mu = GroupedLinear(out_features, latent_dim, groups=groups, skip=True) # * self.latent_img_size**2
         self.fc_logvar = GroupedLinear(out_features, latent_dim, groups=groups, skip=False)
         self.fc_decode = GroupedLinear(latent_dim, out_features, groups=groups, skip=True)
-
 ```
-  </div>
-</div>
-
+:::
+::::
 
 **Decoder**
 
-From a $Z$ distribution sample, the decoder $G(z)$ generates maps $\hat{y}$.  The low dimensional image with 256 input channels (RGB) and with a spacial dimension of 16x16 is enlarged to an output of 3 channels with a spacial resolution of 64x64. The translated/generated output should match with one of the images in the Y domain. The decoder in the generator 1 translates satellite photos to maps whereas the decoder in the generator 2 translated maps to satellite pictures. 
+From a $Z$ distribution sample, the decoder $G(z)$ generates maps
+$\hat{y}$. The low dimensional image with 256 input channels (RGB) and
+with a spacial dimension of 16x16 is enlarged to an output of 3 channels
+with a spacial resolution of 64x64. The translated/generated output
+should match with one of the images in the Y domain. The decoder in the
+generator 1 translates satellite photos to maps whereas the decoder in
+the generator 2 translated maps to satellite pictures.
 
-Added to up-sampling, the decoder also contains the residuals blocks, instance normalization and reflection padding. The purpose and the functionality of these blocks and their implementation are discussed in the section *4 Encoder * below. 
+Added to up-sampling, the decoder also contains the residuals blocks,
+instance normalization and reflection padding. The purpose and the
+functionality of these blocks and their implementation are discussed in
+the section *4 Encoder* below.
 
-Latent $z$  → Decoder $G(z)$ →  $\hat{y}\ $ (generated/fake map)
+Latent $z$ → Decoder $G(z)$ → \$\hat{y}\$ (generated/fake map)
 
+:::: code-toggle
+<button class="code-toggle-btn">
 
-<div class="code-toggle">
-  <button class="code-toggle-btn">Upsample </button>
-  <div class="code-content collapsed">
-  
-```python
+Upsample
+
+</button>
+
+::: {.code-content .collapsed}
+``` python
 
 class Upsample(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, factor=2):
@@ -870,18 +1191,19 @@ class Upsample(nn.Module):
         z = self.conv(x) + x.repeat_interleave(self.repeats, dim=1) # conv w skip
         return F.pixel_shuffle(z, self.factor)
         
-
 ```
-  </div>
-</div>
+:::
+::::
 
+:::: code-toggle
+<button class="code-toggle-btn">
 
+Decoder
 
-<div class="code-toggle">
-  <button class="code-toggle-btn">Decoder </button>
-  <div class="code-content collapsed">
-  
-```python
+</button>
+
+::: {.code-content .collapsed}
+``` python
 
         # Decoder
         decoder = []
@@ -902,37 +1224,43 @@ class Upsample(nn.Module):
         decoder += [nn.ReflectionPad2d(channels), nn.Conv2d(out_features, channels, 7), nn.Tanh()]
 
         self.decoder = nn.Sequential(*decoder)
-
 ```
-  </div>
-</div>
-
+:::
+::::
 
 **Generators**
 
-The Generator 1 consists of encoder, probabilistic sampling and a decoder that converts satellite images to latent distribution to maps.
+The Generator 1 consists of encoder, probabilistic sampling and a
+decoder that converts satellite images to latent distribution to maps.
 
-Satellite image $x$ → Encoder $E(x)$ → Latent $z$  → Decoder $G(z)$ → $\hat{y}$ (generated Map image)
+Satellite image $x$ → Encoder $E(x)$ → Latent $z$ → Decoder $G(z)$ →
+$\hat{y}$ (generated Map image)
 
+The Generator 2 consists of encoder, probabilistic sampling and a
+decoder that converts maps to latent distribution to satellite images.
 
-The Generator 2 consists of encoder, probabilistic sampling and a decoder that converts maps to latent distribution to satellite images.
+Map image $y$ → Encoder $E(y)$ → Latent $z$ → Decoder $F(z)$ → $\hat{x}$
+(generated Satellite image)
 
+**Discriminator D_Y**
 
-Map image $y$ → Encoder $E(y)$ → Latent $z$  → Decoder $F(z)$ →  $\hat{x}$ (generated Satellite image)
+Discriminator D_Y discriminates whether the generator map image
+$\hat{y}$ is a real map or a fake map; accordingly updates the training
+parameters and gives an update to the Generator-X
 
+D_Y outputs 0 if it detects that the generated map image is a fake and
+outputs 1 if it gets tricked(fooled) by the generator 1 and takes the
+generated map image as the real image.
 
-**Discriminator D_Y ** 
+:::: code-toggle
+<button class="code-toggle-btn">
 
-Discriminator D_Y differentiates whether the generator map image  $\hat{y}$ is a real map or a fake map; accordingly updates the training parameters and gives an update to the Generator-X
+Discriminator
 
-D_Y outputs 0 if it detects that the generated map image is a fake and outputs 1 if it gets tricked(fooled) by the generator 1 and takes the generated map image as the real image.
+</button>
 
-
-<div class="code-toggle">
-  <button class="code-toggle-btn">Discriminator </button>
-  <div class="code-content collapsed">
-  
-```python
+::: {.code-content .collapsed}
+``` python
 
 class Discriminator(nn.Module):
     def __init__(self, input_shape):
@@ -962,40 +1290,49 @@ class Discriminator(nn.Module):
 
     def forward(self, img):
         return self.model(img)
-
-
 ```
-  </div>
-</div>
+:::
+::::
 
-#### 3.3 Map → Satellite Translation (Y → X) ####
+#### Map → Satellite Translation (Y → X)
 
-The process explained in *section 3.2* is repeated for the generator-2 except that the input is changed from satellite photos to maps and the generated output are aerial photos instead of maps.
+The process explained in *section 3.2* is repeated for the generator-2
+except that the input is changed from satellite photos to maps and the
+generated output are aerial photos instead of maps.
 
-Map image $y$ → Encoder $E(y)$ → Latent $z$  → Decoder $F(z)$ →  $\hat{x}\ $ (generated/fake satellite image)
+Map image $y$ → Encoder $E(y)$ → Latent $z$ → Decoder $F(z)$ → $\hat{x}$ (generated/fake satellite image)
 
+**Discriminator D_X**
 
-**Discriminator D_X ** 
+Discriminator $D_X$ differentiates whether the generator satellite photo
+$\hat{x}$ is a real aerial picture or a fake picture; accordingly
+updates the training parameters and gives an update to the Generator-Y.
 
-Discriminator $D_X$ differentiates whether the generator satellite photo  $\hat{x}$ is a real aerial picture or a fake picture; accordingly updates the training parameters and gives an update to the Generator-Y.
+$D_X$ outputs 0 if it detects that the generated satellite image is a
+fake and outputs 1 if it gets tricked(fooled) by the generator 2 and
+takes the generated satellite image as the real image. Discriminators
+($D_X, D_Y$) ensure realism in both X and Y domains
 
-$D_X$ outputs 0 if it detects that the generated satellite image is a fake and outputs 1 if it gets tricked(fooled) by the generator 2 and takes the generated satellite image as the real image. Discriminators ($D_X, D_Y$) ensure realism in both X and Y domains
+#### GAN loss
 
-
-#### 3.4 GAN loss ####
-
-Loss GAN_XY is the mean square loss of the discriminator $D_Y$ output with the valid tensor vector of 1s'. Similarly, Loss GAN_YX is the mean square loss of the discriminator $D_X$ output with the valid tensor vector of 1s'.
+Loss GAN_XY is the mean square loss of the discriminator $D_Y$ output
+with the valid tensor vector of 1s'. Similarly, Loss GAN_YX is the mean
+square loss of the discriminator $D_X$ output with the valid tensor
+vector of 1s'.
 
 GAN loss is the average of the GAN losses from both generators.
 
-![](images/loss_GAN_XY.png){width=100%}
+![](images/loss_GAN_XY.png){width="80%"}
 
+:::: code-toggle
+<button class="code-toggle-btn">
 
-<div class="code-toggle">
-  <button class="code-toggle-btn">GAN Loss </button>
-  <div class="code-content collapsed">
-  
-```python
+GAN Loss
+
+</button>
+
+::: {.code-content .collapsed}
+``` python
 
         # GAN loss
         fake_B = G_AB(real_A)
@@ -1004,27 +1341,41 @@ GAN loss is the average of the GAN losses from both generators.
         loss_GAN_BA = criterion_GAN(D_A(fake_A), valid)
 
         loss_GAN = (loss_GAN_AB + loss_GAN_BA) / 2
-
 ```
-  </div>
-</div>
+:::
+::::
 
+#### Cycle Consistency
 
-#### 3.5 Cycle Consistency ####
+To maintain the cycle consistency between the input images and the
+generated images, the output from Generator 1 is given as input to the
+Generator 2 and the output from the Generator 2 is compared with the
+original input. In other words, the first generator takes the input as
+the satellite images and gives the output as fake maps. The second
+generator takes the fake maps as input and generates fake satellite
+images. The L1 loss function is used to find the error between the
+generated fake satellite images with that of original satellite images.
 
-To maintain the cycle consistency between the input images and the generated images, the output from Generator 1 is given as input to the Generator 2 and the output from the Generator 2 is compared with the original input. In other words, the first generator takes the input as the satellite images and gives the output as fake maps. The second generator takes the fake maps as input and generates fake satellite images. The L1 loss function is used to find the error between the generated fake satellite images with that of original satellite images.
+Similarly, when we input maps to the Generator 2 the output are fake
+satellite photos. These fake aerial pictures are input to Generator 1
+which generates fake maps. The L1 loss function is used to find the
+error between the generated fake maps with that of original maps.
 
-Similarly, when we input maps to the Generator 2 the output are fake satellite photos. These fake aerial pictures are input to Generator 1 which generates fake maps.  The L1 loss function is used to find the error between the generated fake maps with that of original maps.
+Cycle consistency ensures $F(G(E(x))) \approx \ x$ (reconstruct original
+satellite image). Similarly, $G(F(y)) \approx \ y$ (reconstruct original
+map).
 
-Cycle consistency ensures $F(G(E(x))) \approx \ x$ (reconstruct original satellite image). Similarly, $G(F(y)) \approx \ y$ (reconstruct original map).
+![](images/loss_cycle_X_Y.png){width="60%"}
 
-![](images/loss_cycle_X_Y.png){width=100%}
+:::: code-toggle
+<button class="code-toggle-btn">
 
-<div class="code-toggle">
-  <button class="code-toggle-btn">Cycle Consistency Loss </button>
-  <div class="code-content collapsed">
-  
-```python
+Cycle Consistency Loss
+
+</button>
+
+::: {.code-content .collapsed}
+``` python
 
         # Cycle loss
         recov_A = G_BA(fake_B)
@@ -1033,54 +1384,78 @@ Cycle consistency ensures $F(G(E(x))) \approx \ x$ (reconstruct original satelli
         loss_cycle_B = criterion_cycle(recov_B, real_B)
 
         loss_cycle = (loss_cycle_A + loss_cycle_B) / 2
-
 ```
-  </div>
-</div>
+:::
+::::
 
+#### Identity Loss
 
-#### 3.6 Identity Loss ####
+The generator 1 ($G_{XY}$) translates (generates) an image from the $X$
+domain to the $Y$ domain. This means, for a given satellite image input,
+the $G_{XY}$ generates a map image. If a map image is given as input to
+the generator $G_XY$ then it should still preserve the input's identity
+and generate a map image from the latent distribution.
 
-The generator 1 ($G_{XY}$) translates (generates) an image from the $X$ domain to the $Y$ domain. This means, for a given satellite image input, the $G_{XY}$ generates a map image. If a map image is given as input to the generator $G_XY$ then it should still preserve the input's identity and generate a map image from the latent distribution.
+Similarly, when a satellite image is given as input to the generator
+$G_{YX}$, then the generator should preserve the satellite image
+identity and translate it to another satellite image.
 
-Similarly, when a satellite image is given as input to the generator  $G_{YX}$, then the generator should preserve the satellite image identity and translate it to another satellite image. 
+The L1 loss measures the error between the generated images and the real
+images.
 
-The L1 loss measures the error between the generated images and the real images.
+![](images/loss_identity_XY.png){width="60%"}
 
-![](images/loss_identity_XY.png){width=100%}
+:::: code-toggle
+<button class="code-toggle-btn">
 
+Identity Loss
 
-<div class="code-toggle">
-  <button class="code-toggle-btn">Identity Loss </button>
-  <div class="code-content collapsed">
-  
-```python
+</button>
+
+::: {.code-content .collapsed}
+``` python
     # Identity loss
         loss_id_A = criterion_identity(G_BA(real_A), real_A)
         loss_id_B = criterion_identity(G_AB(real_B), real_B)
 
         loss_identity = (loss_id_A + loss_id_B) / 2
 ```
-  </div>
-</div>
+:::
+::::
 
+#### Kullback-Leibler Divergence (KL) loss
 
-**Kullback-Leibler Divergence (KL) loss**
+The KL-Divergence ensures the encoded distributions stay close to
+$N(0,1)$ but not identical. The encoder maps each input $x$ to a mini
+Gaussian distribution in latent space, defined by mean $\mu(x)$ and
+variance $\sigma^2(x)$. The KL Divergence Loss helps these
+mini-distributions $q (z|x)$ stay "well-behaved" relative to the prior
+$p(z)$
 
-The KL-Divergence ensures the encoded distributions stay close to $N(0,1)$ but not identical. The encoder maps each input $x$ to a mini Gaussian distribution in latent space, defined by mean $\mu(x)$ and variance $\sigma^2(x)$. The KL Divergence Loss helps these mini-distributions $q (z|x)$ stay "well-behaved" relative to the prior $p(z)$
+-   If $\sigma^2_j$ → 0 ($j$ denotes the input sample), the latent
+    dimension $z_j$ becomes deterministic with no randomness, defeating
+    the purpose of a probabilistic VAE.
+-   If $\mu_j$ for each input grows too large, the latent space becomes
+    unstructured, harming generation.
+-   If $\sigma^2_j$ → $\infty$, the mini distributions overlap too much
+    and the latent dimensions become noisy and uninformative.
 
-- If $\sigma^2_j$  → 0 ($j$ denotes the input sample), the latent dimension $z_j$ becomes deterministic with no randomness, defeating the purpose of a probabilistic VAE.
-- If $\mu_j$ for each input grows too large, the latent space becomes unstructured, harming generation.
-- If  $\sigma^2_j$  → $\infty$, the mini distributions overlap too much and the latent dimensions become noisy and uninformative.
+Therefore, KL-divergence loss acts as a balancing act to prevent mini
+distributions from collapsing, from drifting too far, and from
+overlapping too much. This loss helps in producing realistic outputs
+from sampling the latent distribution, avoids the mode collapse and
+helps in smooth interpolation between latent points and meaningful
+translations.
 
-Therefore, KL-divergence loss acts as a balancing act to prevent mini distributions from collapsing, from drifting too far, and from overlapping too much. This loss helps in producing realistic outputs from sampling the latent distribution, avoids the mode collapse and helps in smooth interpolation between latent points and meaningful translations. 
+:::: code-toggle
+<button class="code-toggle-btn">
 
+KL-Divergence
 
-<div class="code-toggle">
-  <button class="code-toggle-btn">KL-Divergence </button>
-  <div class="code-content collapsed">
-  
-```python
+</button>
+
+::: {.code-content .collapsed}
+``` python
 
     def kld_loss(self, mu, logvar):
         kld = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
@@ -1092,57 +1467,83 @@ Therefore, KL-divergence loss acts as a balancing act to prevent mini distributi
         kl_loss = self.kld_loss(mu, logvar)
         wandb.log({"kl_loss": kl_loss.item()})  # Log KL divergence loss to Weights & Biases
         (kl_loss * self.lambda_kl).backward(retain_graph=True)  # Retain graph for backpropagation
-
-
 ```
-  </div>
-</div>
+:::
+::::
 
+#### Total Loss
 
-**Total Loss**
+As mentioned in *Methods: VAE-CycleGAN*, the total objective of the
+VAE-CycleGAN is:
 
-<div class="code-toggle">
-  <button class="code-toggle-btn">Total Loss </button>
-  <div class="code-content collapsed">
-  
-```python
+$$
+\mathcal{L}_{\text{Total}} = \underbrace{\mathcal{L}_{\text{VAE}}}_{\text{Probabilistic Encoding}} + \underbrace{\mathcal{L}_{\text{GAN}}}_{\text{Adversarial}} + \underbrace{\lambda_{\text{cyc}}\mathcal{L}_{\text{cycle}}}_{\text{Domain Consistency}} + \underbrace{\lambda_{\text{id}}\mathcal{L}_{\text{identity}}}_{\text{Content Preservation}}
+$$
+
+-   For the cycle VAE loss, there's no reconstruction VAE reconstruction
+    loss since we are not reconstructing the input data using a decoder
+    ; we are translating the input image ($x$, satellite photo from the
+    $X$ domain) to a map image($y$) in another domain ($Y$).
+
+-   The VAE-cycleGAN model considers unpaired images; therefore we
+    cannot have a VAE reconstruction error.
+
+-   All the other losses discussed above are added to get the complete
+    objective.
+
+:::: code-toggle
+<button class="code-toggle-btn">
+
+Total Loss
+
+</button>
+
+::: {.code-content .collapsed}
+``` python
 
 # Total loss
 loss_G = loss_GAN + model_config['lambda_cyc'] * loss_cycle  + model_config['lambda_id'] * loss_identity
-
 ```
-  </div>
-</div>
+:::
+::::
 
-There's no VAE reconstruction loss since we are not reconstructing the input data using a decoder ; we are translating the input image ($x$, satellite photo from the $X$ domain) to a map image($y$) in another domain ($Y$). The model also considers unpaired images; therefore we cannot have a VAE reconstruction error. The KL-Divergence loss is added to the total loss above to get the complete objective. 
+#### Encoder implementation
 
+The detailed process and the VAE Encoder is as follows:
 
+**1. Initial Convolution:**
 
-### 4 Encoder implementation ###
+This includes a Reflection Padding followed by a Convolution, Instance
+Normalization and a ReLU layer.
 
-The detailed process and the VAE Encoder is as follows: 
+-   Reflection Padding: It pads the input tensor by reflecting/mirroring
+    values at the boundaries (instead of padding with zeros or other
+    constants). For a padding size of n, it mirrors the n nearest pixels
+    along the edges. This helps in preserving the image structure and
+    avoids edge artifacts (unlike zero-padding).
 
-**1. Initial Convolution:** 
+-   Convolution layer: Using a kernel_size of 7, this layer is used for
+    feature extraction. The input image with 3 features is convoluted to
+    an output image with 64 features.
 
-This includes a Reflection Padding followed by a Convolution, Instance Normalization and a ReLU layer.
-  
-- Reflection Padding: It pads the input tensor by reflecting/mirroring values at the boundaries (instead of       padding with zeros or other constants). For a padding size of n, it mirrors the n nearest pixels along the      edges. This helps in preserving the image structure and avoids edge artifacts (unlike zero-padding).
-      
-- Convolution layer: Using a kernel_size of 7, this layer is used for feature extraction. The input image with
-3 features is convoluted to an output image with 64 features. 
-      
-- Instance Normalization: Unlike BatchNorm, which normalizes across batches, InstanceNorm normalizes each 
-channel in each sample independently. For input shape (N, C, H, W), it computes mean/variance per (C, H, W)
-slice. Instance normalization helps for stable training; it is crucial for image generation and works well
-with small batch sizes.
-      
-- ReLU : Introduces non-linearity after normalization.
+-   Instance Normalization: Unlike BatchNorm, which normalizes across
+    batches, InstanceNorm normalizes each channel in each sample
+    independently. For input shape (N, C, H, W), it computes
+    mean/variance per (C, H, W) slice. Instance normalization helps for
+    stable training; it is crucial for image generation and works well
+    with small batch sizes.
 
-<div class="code-toggle">
-  <button class="code-toggle-btn">Reflect_Conv_Normalize</button>
-  <div class="code-content collapsed">
-  
-```python
+-   ReLU : Introduces non-linearity after normalization.
+
+:::: code-toggle
+<button class="code-toggle-btn">
+
+Reflect_Conv_Normalize
+
+</button>
+
+::: {.code-content .collapsed}
+``` python
 
     self.block = nn.Sequential(
         nn.ReflectionPad2d(1),
@@ -1153,51 +1554,74 @@ with small batch sizes.
         nn.Conv2d(in_features, in_features, 3),
         nn.InstanceNorm2d(in_features),
     )
-
 ```
-  </div>
-</div>
+:::
+::::
 
-  
-There's no spatial compression yet; channels increase from 3 → 64. The input image (3, 64,64) is changed to an output (64, 64, 64).
-
+There's no spatial compression yet; channels increase from 3 → 64. The
+input image (3, 64,64) is changed to an output (64, 64, 64).
 
 **2. Downsampling Blocks:**
 
-The downsampling module combines convolution, pixel unshuffle, and a skip connection to reduce spatial resolution while preserving information. 
-  
-- Convolution: This layer reduces channel dimension or extracts features before pixel unshuffle. It maps input 64 channels → output 16 channels. This compression is for efficiency before expensive spatial operations.
-  
-- Pixel Unshuffle: Rearranges spatial dimensions into channels. Pixel Shuffle (F.pixel_shuffle) and Pixel Unshuffle (F.pixel_unshuffle) are efficient operations for upsampling and downsampling in neural networks, often used as alternatives to transposed convolutions (for upsampling) and strided convolutions (for downsampling).
+The downsampling module combines convolution, pixel unshuffle, and a
+skip connection to reduce spatial resolution while preserving
+information.
 
-  - Pixel unshuffle decreases spatial resolution while increasing channel depth. It acts as the inverse of Pixel Shuffle. This is more stable than strided convolution and avoids aliasing.
-  
-  - For the input with dimensions ( C, H x r, W x r) converts to (C * /$r^2$, H/r, W/r). 
-  
-  - We used 2 layers of down sampling with a downscale factor of 2. 
-   
-  - Each Downsample layer reduces spatial size by 2× and doubles channels:
+-   Convolution: This layer reduces channel dimension or extracts
+    features before pixel unshuffle. It maps input 64 channels → output
+    16 channels. This compression is for efficiency before expensive
+    spatial operations.
 
-  - First Downsample: (64, 64, 64) → (128, 32, 32)
+-   Pixel Unshuffle: Rearranges spatial dimensions into channels. Pixel
+    Shuffle (F.pixel_shuffle) and Pixel Unshuffle (F.pixel_unshuffle)
+    are efficient operations for upsampling and downsampling in neural
+    networks, often used as alternatives to transposed convolutions (for
+    upsampling) and strided convolutions (for downsampling).
 
-  - Second Downsample: (128, 32, 32) → (256, 16, 16)
+    -   Pixel unshuffle decreases spatial resolution while increasing
+        channel depth. It acts as the inverse of Pixel Shuffle. This is
+        more stable than strided convolution and avoids aliasing.
 
-- Skip Connection: 
-  
-  - A skip connection (or residual connection) is a pathway that allows the input to bypass one or more layers and be added directly to the output. This concept was popularized by **add link ResNet (2015)** and is widely used to improve gradient flow avoiding vanishing gradients and helps preserve input information.
+    -   For the input with dimensions ( C, H x r, W x r) converts to (C
+        \* /$r^2$, H/r, W/r).
 
-  - A skip connection ensures the original input contributes to the output (residual learning) and stabilizes training 
- 
-  - During downsampling, skip connection processes the input x(in the code above) separately to match the shape of the convoluted and pixel unshuffled output y. 
- 
-  - Uses pixel unshuffle and channel averaging to align dimensions of the x with the output y (please check the code)
-  
+    -   We used 2 layers of down sampling with a downscale factor of 2.
 
-<div class="code-toggle">
-  <button class="code-toggle-btn">Downsample</button>
-  <div class="code-content collapsed">
-  
-```python
+    -   Each Downsample layer reduces spatial size by 2× and doubles
+        channels:
+
+    -   First Downsample: (64, 64, 64) → (128, 32, 32)
+
+    -   Second Downsample: (128, 32, 32) → (256, 16, 16)
+
+-   Skip Connection:
+
+    -   A skip connection (or residual connection) is a pathway that
+        allows the input to bypass one or more layers and be added
+        directly to the output. This concept was popularized by **add
+        link ResNet (2015)** and is widely used to improve gradient flow
+        avoiding vanishing gradients and helps preserve input
+        information.
+
+    -   A skip connection ensures the original input contributes to the
+        output (residual learning) and stabilizes training
+
+    -   During downsampling, skip connection processes the input x(in
+        the code above) separately to match the shape of the convoluted
+        and pixel unshuffled output y.
+
+    -   Uses pixel unshuffle and channel averaging to align dimensions
+        of the x with the output y (please check the code)
+
+:::: code-toggle
+<button class="code-toggle-btn">
+
+Downsample
+
+</button>
+
+::: {.code-content .collapsed}
+``` python
 
 class Downsample(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, factor=2):
@@ -1221,26 +1645,31 @@ class Downsample(nn.Module):
         x = x.mean(dim=2)  # Average over the group dimension
 
         return y + x  # Add the downsampled skip connection
-
 ```
-  </div>
-</div>
-
+:::
+::::
 
 **3. Residual Blocks:**
 
-  - Residual Blocks consists of two reflection paddings, two convolutions, two instance normalization, a Relu activation layer for non-linearity and a skip connection. The purpose of reflection padding, instance norm and skip connections are explained earlier.
-  
-  - While avoiding vanishing gradients during back propagation, and learning the residual (difference) between the input and the output with skip connection, the residual blocks ensures stable training even with many layers.
-  
+-   Residual Blocks consists of two reflection paddings, two
+    convolutions, two instance normalization, a Relu activation layer
+    for non-linearity and a skip connection. The purpose of reflection
+    padding, instance norm and skip connections are explained earlier.
 
+-   While avoiding vanishing gradients during back propagation, and
+    learning the residual (difference) between the input and the output
+    with skip connection, the residual blocks ensures stable training
+    even with many layers.
 
+:::: code-toggle
+<button class="code-toggle-btn">
 
-<div class="code-toggle">
-  <button class="code-toggle-btn">Residual Block</button>
-  <div class="code-content collapsed">
-  
-```python
+Residual Block
+
+</button>
+
+::: {.code-content .collapsed}
+``` python
 class ResidualBlock(nn.Module):
     def __init__(self, in_features):
         super(ResidualBlock, self).__init__()
@@ -1257,27 +1686,30 @@ class ResidualBlock(nn.Module):
 
     def forward(self, x):
         return x + self.block(x)
-
 ```
-  </div>
-</div>
+:::
+::::
 
-  
-  - We used 2 layers of residual blocks
-  
-  - These maintain the same dimensions of the output (256, 16, 16) after downsampling.
+-   We used 2 layers of residual blocks
 
-
+-   These maintain the same dimensions of the output (256, 16, 16) after
+    downsampling.
 
 **Metrics**
 
-The Frechet Inception Distance, Structural Similarity Index Measure, Mean Squared Error, and  Peak Signal Noise Ratio are calculated between the translated/generated images and the original images.
+The Frechet Inception Distance, Structural Similarity Index Measure,
+Mean Squared Error, and Peak Signal Noise Ratio are calculated between
+the translated/generated images and the original images.
 
-<div class="code-toggle">
-  <button class="code-toggle-btn">Metrics </button>
-  <div class="code-content collapsed">
-  
-```python
+:::: code-toggle
+<button class="code-toggle-btn">
+
+Metrics
+
+</button>
+
+::: {.code-content .collapsed}
+``` python
 
 # Initialize metrics
 fid = FrechetInceptionDistance(feature=2048).to(device)
@@ -1321,119 +1753,460 @@ def calculate_metrics(real, fake):
     return {k: float(v) if hasattr(v, 'item') else float(v) for k, v in metrics.items()}
     
     return metrics
-
 ```
-  </div>
-</div>
+:::
+::::
+
+### Model Architecture
+
+**Generator X → Y (Real Satellite images → Fake maps) **
+ ![](images/Results/VAE_Architecture/Generator_XtoY.png)
 
 
-## 4 Results
+**Discriminator Y (discriminates whether the generated map y' is a real map or a fake map) **
+ ![](images/Results/VAE_Architecture/Discriminator_Y.png)
 
-
-### 4.1 CycleGAN Results###
-
-Below are the results of the images generated from a CycleGAN model - with out probabilistic sampling from the latent space.
-
-In Figure (a) below, the first row shows the input satellite pictures followed by generated maps for the satellite pictures in the second row. The third row shows the input maps followed by generated satellite pictures in the fourth row. 
-
-In Figure (b) below, the first row shows the input satellite pictures followed by generated/fake maps for the satellite pictures in the second row. The third row shows the generated satellite pictures from the fake maps.The fourth row shows the generated maps from the fake satellite pictures.
-
-
-<div id="tbl-ae-simple" class="full-width-table">
-<table style="width:100%">
-  <tr>
-    <th>Aerial Views to Maps (X $\to$ Y $\&$  Y $\to$ X )</th>
-    <th>Aerial Views to Maps (X $\to$ Y $\to$  X'$\to$ Y')</th>
-  </tr>
-  <tr>
-    <td><img src="images/Results/CycleGAN_a2m_603_X_Y.png" style="width:100%"></td>
-    <td><img src="images/Results/CycleGAN_a2m_603_X_Y_X_Y.png" style="width:100%"></td>
-  </tr>
-  <tr>
-    <td>(a)</td>
-    <td>(b)</td>
-  </tr>
-</table>
-<p>CycleGAN: Satellite to Maps Transformation</p>
-</div>
-
-### 4.2 VAE-CycleGAN Results###
-
-
-Below are the results of the images generated from a Variation Autoencoder CycleGAN model - with probabilistic sampling from the latent space.
-
-<div id="tbl-vae-simple" class="full-width-table">
-<table style="width:100%">
-  <tr>
-    <th>Aerial Views to Maps (X $\to$ Y $\&$  Y $\to$ X )</th>
-    <th>Aerial Views to Maps (X $\to$ Y $\to$  X'$\to$ Y')</th>
-  </tr>
-  <tr>
-    <td><img src="images/Results/VAE_cycleGAN_a2m_603_X_Y.png" style="width:100%"></td>
-    <td><img src="images/Results/VAE_cycleGAN_a2m_603_X_Y_X_Y.png" style="width:100%"></td>
-  </tr>
-  <tr>
-    <td>(a)</td>
-    <td>(b)</td>
-  </tr>
-</table>
-<p>VAE-CycleGAN: Satellite to Maps Transformation</p>
-</div>
-
-![](images/Results/losses_1.png){width=100%}
-
-![](images/Results/losses_2.png){width=100%}
-
-### 4.3 Metrics###
-
-**Compression Rate **
-
-Compression rate measures how much the input is reduced in spatial dimensions while increasing channel depth. It's calculated as:
-
-
-$$
-\text{Compression Rate} = \frac{\text{Latent Spatial Size}}{\text{Input Spatial Size}} \times \frac{\text{Input Channels}}{\text{Final Channels}}
-$$
+**Generator Y → X (Real Maps → Fake Satellite images) **
+ ![](images/Results/VAE_Architecture/Generator_YtoX.png)
  
-The latent representation in the VAE-CycleGAN model is a flat vector (not spatial), Therefore, we the spatial reduction factor and channel expansion/reduction are described separately.
 
-**Spatial Compression**
 
-Input Spatial Size: 64×64=4096 pixels.
+**Discriminator X (discriminates whether the generated satellite image $ x'$ is a real satellite image or a fake one) **
+ ![](images/Results/VAE_Architecture/Discriminator_X.png) 
+ 
+## Results
+
+### CycleGAN Results
+
+#### Translated images
+
+Below are the results of the images generated from a CycleGAN model -
+with out probabilistic sampling from the latent space.
+
+In Figure (a) below, the first and third rows shows the true input
+images. The second and fourth rows are generated images.
+
+Row 1: True satellite picture of size 64x64 (X) Row 2: Translated map
+image (Y') Row 3: True map picture of size 64x64(Y) Row 4: Translated
+satellite image (X')
+
+In Figure (b) below, only the first row shows the true input satellite
+pictures All the other rows show the generated images.
+
+Row 1: True satellite picture of size 64x64 (X) Row 2: Translated map
+image (Y') Row 3: Translated satellite image (X'') with Y' as input Row
+4: Translated map image (Y'') with X'' as input
+
+
+::: full-width-table
+| Translated images:<br> Satellite views to fake Maps, <br> Map views to fake Satellite images |Translated images:<br> Satellite views to fake Maps, <br> Fake Map images to fake Satellite images  ||
+|------------------------------------|------------------------------------|
+| ![](images/Results/cycleGAN/600.png) | ![](images/Results/cycleGAN/600_cycle.png) |
+| *(a)* (X → Y' & Y → X') <br> rows 1, 2 : Real_Aerial → Fake Views, <br> rows 3, 4: Real Maps → Fake Aerial | *(b)*  (X → Y → X' → Y') <br>rows 1, 2, 3, 4: <br> Real_Aerial → Fake Maps → Fake Aerial → Fake Maps|
+
+CycleGAN (64x64) : Satellite to Maps/ Maps to Satellite Generation
+:::
+
+#### CycleGAN Metrics
+
+<iframe src="images/Metrics/cycleGAN/epochs_601_metrics.txt" width="100%" height="400px" style="border:1px solid #ccc;"></iframe>
+
+### VAE-CycleGAN - 64x64 Results
+
+Below are the results of the images generated from a Variation
+Autoencoder CycleGAN model - with probabilistic sampling from the latent
+space.
+
+#### Generated/Translated images
+
+::: full-width-table
+| Generated/ Translated images:<br> Satellite views to fake Maps, <br> Map views to fake Satellite images | Generated/ Translated images:<br> Satellite views to fake Maps, <br> Fake Map images to fake Satellite images  ||
+|------------------------------------|------------------------------------|
+| ![](images/Results/VAE_64X64/600.png) | ![](images/Results/VAE_64X64/600_cycle.png) |
+| *(a)* (X → Y' & Y → X') <br> rows 1, 2 : Real_Aerial → Fake Views, <br> rows 3, 4: Real Maps → Fake Aerial | *(b)*  (X → Y → X' → Y') <br>rows 1, 2, 3, 4: <br> Real_Aerial → Fake Maps → Fake Aerial → Fake Maps| |
+
+VAE-CycleGAN (64x64) : Satellite to Maps/ Maps to Satellite Generation
+:::
+
+#### VAE-CycleGAN (64x64) Metrics
+
+<iframe src="images/Metrics/VAE_64X64/epochs_601_metrics.txt" width="100%" height="400px" style="border:1px solid #ccc;"></iframe>
+
+
+### VAE-CycleGAN - 256x256 Results
+
+Below are the results of the images generated from a VAE CycleGAN model - with probabilistic sampling from the latent space.
+The input images are of size 256 x 256. The compression ratio in the latent space is 256 :1.
+
+#### Generated/Translated images
+
+**Real Satellite views to Fake Maps**
+<img src="images/Results/Comparisions/VAE256_AtoM.png" width="100%">
+
+**Map views to Fake Satellite images**
+<img src="images/Results/Comparisions/VAE256_MtoA.png" width="100%">
+
+::: full-width-table
+| Generated/ Translated images:<br> Satellite views to fake Maps, <br> Map views to fake Satellite images | Generated/ Translated images:<br> Satellite views to fake Maps, <br> Fake Map images to fake Satellite images  ||
+|------------------------------------|------------------------------------|
+| ![](images/Results/VAE_r256_n4/600.png) | ![](images/Results/VAE_r256_n4/600_cycle.png) |
+| *(a)* (X → Y' & Y → X') <br> rows 1, 2 : Real_Aerial → Fake Views, <br> rows 3, 4: Real Maps → Fake Aerial | *(b)*  (X → Y → X' → Y') <br>rows 1, 2, 3, 4: <br> Real_Aerial → Fake Maps → Fake Aerial → Fake Maps| |
+
+VAE-CycleGAN (256x256) : Satellite to Maps/ Maps to Satellite Generation
+:::
+
+#### VAE-CycleGAN (256x256) Metrics
+
+<iframe src="images/Metrics/VAE_r256_n4/epochs_601_metrics.txt" width="100%" height="400px" style="border:1px solid #ccc;"></iframe>
+
+
+### Results Analysis
+
+#### Loss curves
+
+<img src="images/Results/VAE_r256_n4/losses_1.png" width="100%">
+
+<img src="images/Results/VAE_r256_n4/losses_2.png" width="100%">
+
+<br>
+
+The quantitative summary of the individual losses and the total objective and the analyses are as follows:
+
+
+<img src="images/Run_summary/VAE_r256_n4/VAE_r256_n4_run_summary.png" width="25%">
+
+**FID (433.81)**
+
+The Fréchet Inception Distance (FID) is very high, indicating poor quality in generated images. FID measures the similarity between real and generated images in feature space (lower is better).
+
+The model struggles to generate realistic images, likely due to mode collapse, insufficient training, or architectural limitations.
+
+**KL Loss (6327.29)**
+
+The extremely high KL divergence indicates that the VAE’s latent space is poorly regularized. This loss penalizes deviations from the standard normal prior and encourages the learned latent distribution to remain close to $N (0,I)$.
+
+Possible causes include: an overly complex latent space or a poor balance between reconstruction and KL terms (a common issue in VAEs).
+
+In VAE-CycleGAN256 implementation, the noise input is initialized using a standard normal distribution, and the log-variance (logvar) is clamped between -10 and 0. This bounds the variance between approximately $e^-10 \approx$ 0 and 1, which constrains the sampled noise to a relatively narrow range.
+
+As a result, there’s a risk that the model is not meaningfully exploring the latent space and may fail to generate diverse new images. 
+
+To address this, we may need to: adjust the KL loss weight (lambda_kl), or use KL annealing, gradually increasing the KL penalty during training to allow the model to first focus on reconstruction.
+
+**GAN Losses (Total: 0.76, XY(AB): 0.90, YX(BA): 0.63)**
+
+The program uses GAN_AB for GAN_XY and GAN_BA for GAN_YX
+
+loss_GAN_AB (0.90) is higher than loss_GAN_BA (0.63), indicating the generator for direction X→Y (e.g., satellite→map) is weaker than Y→X.
+
+Both are relatively low, suggesting the discriminator is not providing strong gradients (may be too weak or the generator is "winning").
+
+**Cycle Consistency Loss (0.086)**
+
+Low cycle loss implies the model preserves content well during translation (e.g., satellite↔map).
+
+However, combined with high FID, this suggests the model may be over-regularized, producing blurry or simplistic outputs.
+
+**Identity Loss (0.075)**
+
+Small but non-negligible, meaning the generators slightly modify inputs even when they shouldn’t (e.g., a satellite image passed through the satellite→map→satellite cycle isn’t perfectly preserved).
+
+**Reconstruction Metrics (MSE: 0.014, PSNR: 18.51, SSIM: 0.54)**
+
+These metrics are for satellite images. The generated fake satellite images are measured against the real satellite images and the metrics are evaluated.
+
+SSIM (0.54): Moderate structural similarity (range: 0–1). Moderate value, but still room for improvement.
+
+PSNR (18.51 dB): Low for image generation (ideal: > 25 dB for acceptable quality). Indicates noise/artifacts. In the *Metrics* section below, we see the PSNR for the map images are near 24dB for the Cycle-GAN and VAE-CycleGAN. The PSNR is 21.99dB for VAE-CycleGAN256.
+
+MSE (0.014): Reasonably low, but alone it’s not a reliable metric (can be low for blurry outputs).
+
+**Total Generator Loss (2.00)**
+
+Dominated by KL loss (6327), but other losses are small. This imbalance suggests the KL term is overwhelming the training.
+
+
+#### CycleGAN and VAE-CycleGAN Comparision
+
+<br>
+
+**Real Satellite images → Fake Map images**
+
+::: full-width-table
+| CycleGAN: Real Satellite images → Fake Map images <br> MSE(Map images): 0.0036 | VAE-CycleGAN: Real Satellite images → Fake Map images<br> MSE(Map images): 0.0037 ||
+|------------------------------------|------------------------------------|
+| ![](images/Results/Comparisions/GAN_AtoM.png)| ![](images/Results/Comparisions/VAE64_AtoM.png)|
+| *(a)* (X → Y') <br> rows 1, 2 : Real Satellite views → Fake Map images <br> input : 64 x 64 real Satellite image <br>  compression layers :2 <br> compression ratio: 16 :1   | *(b)*  (X → Y') <br> rows 1, 2 : Real Satellite views → Fake Map images <br> input : 64 x 64 real Satellite image <br>  compression layers :2 <br> compression ratio: 16 : 1  | |
+
+:::
+
+<br>
+
+**Real Map images → Fake Satellite images**
+
+::: full-width-table
+| CycleGAN: Real Map images → Fake Satellite images <br> MSE(Satellite images) : 0.0345 | VAE-CycleGAN: Real Map images → Fake Satellite images <br> MSE(Satellite images) : 0.0355 ||
+|------------------------------------|------------------------------------|
+| ![](images/Results/Comparisions/GAN_MtoA.png)| ![](images/Results/Comparisions/VAE64_MtoA.png)|
+| *(a)* (Y → X') <br> rows 1, 2 : Real Maps → Fake Satellite images <br> input : 64 x 64 real map image <br> compression layers :2 <br> compression ratio: 16 : 1 | *(b)*  (Y → X') <br> rows 1, 2 : : Real Maps → Fake Satellite images <br> input : 64 x 64 real map image <br>  compression layers :2 <br> compression ratio: 16 : 1 ||
+
+:::
+
+#### VAE-CycleGANs Comparision
+
+<br>
+
+**Real Satellite images → Fake Map images**
+
+::: full-width-table
+
+| VAE-CycleGAN: Real Satellite images → Fake Map images  <br> MSE(Map images) : 0.0037  <br> compression ratio: 16 : 1  | VAE-CycleGAN256: Real Satellite images → Fake Map images <br> MSE(Map images) : 0.0063  <br> compression ratio: 256 : 1 ||
+|------------------------------------|------------------------------------|
+| ![](images/Results/Comparisions/VAE64_AtoM.png)| ![](images/Results/Comparisions/VAE256_AtoM.png)|
+| *(a)* (X → Y') <br> rows 1, 2 : Real Satellite views → Fake Map images <br> input : 64 x 64 real Satellite image <br>  compression layers :2  | *(b)*  (X → Y') <br> rows 1, 2 : Real Satellite views → Fake Map images <br> input : 256 x 256 real Satellite image <br>  compression layers :4 | |
+
+:::
+
+<br>
+
+**Real Map images → Fake Satellite images**
+
+::: full-width-table
+| VAE-CycleGAN: Real Map images → Fake Satellite images <br> MSE (Satellite images) : 0.0355  <br> compression ratio: 16 : 1  | VAE-CycleGAN256: Real Map images → Fake Satellite images <br> MSE(Satellite images) : 0.0482 <br> compression ratio: 256 : 1  ||
+|------------------------------------|------------------------------------|
+| ![](images/Results/Comparisions/VAE64_MtoA.png)| ![](images/Results/Comparisions/VAE256_MtoA.png)|
+| *(a)* (Y → X') <br> rows 1, 2 : Real Maps → Fake Satellite images <br> input : 64 x 64 real map image <br> compression layers :2 | *(b)*  (Y → X') <br> rows 1, 2 : : Real Maps → Fake Satellite images <br> input : 256 x 256 real map image <br>  compression layers: 4 ||
+
+:::
+
+
+### Metrics
+
+For convention let's use:
+
+VAE-CycleGAN : VAE-CycleGAN with 64x64 size input and with a spatial compression ratio of 16:1 
+
+VAE-CycleGAN256 : VAE-CycleGAN with 256x256 size input and with a spatial compression ratio of 256:1
+
+
+**CycleGAN and VAE-CycleGAN: Spatial Compression**
+
+Input Spatial Size: 64×64=4096 pixels,
 
 Final Encoder Output: 16×16=256 pixels.
-
 
 $$
 \text{Spatial Compression Factor}: \frac{64 \times 64}{16 \times 16} = 16 \times
 $$
 
-*(The image is compressed to 1/16th of its original spatial area.)*
+*The image is compressed to 1/16th of its original spatial dimensions in the latent space*
 
-**Channel Expansion**
+**VAE-CycleGAN256 : Spatial Compression**
+
+Input Spatial Size: 256x 256 = 65,536 pixels,
+
+Final Encoder Output: 16×16 = 256 pixels.
+
+$$
+\text{Spatial Compression Factor}: \frac{256 \times 256}{16 \times 16} = 256 \times
+$$
+*The image is compressed to 1/256th of its original spatial dimensions in the latent space*
+
+**CycleGAN and VAE-CycleGANs - Channel Expansion**
 
 Input Channels: 3 (RGB).
 
 Final Encoder Channels: 256.
 
-
 $$
 \text{Channel Expansion Factor}: \frac{256}{3} \approx 85.33 \times
 $$
+**Compression Rate**
 
-**AE-CycleGAN**
+Compression rate measures how much the input is reduced in spatial dimensions while increasing channel depth. It's calculated as:
 
-![](images/Results/CycleGAN_a2m_metrics.png){width=100%}
+$$
+\text{Compression Rate} = \frac{\text{Input Spatial Size}}{\text{Latent Spatial Size}} \times \frac{\text{Input Channels}}{\text{Final Channels}} 
+$$
 
-**VAE-CycleGAN**
+**CycleGAN and VAE-CycleGAN: Compression Rate**
 
-![](images/Results/VAE_cycleGAN_a2m_metrics.png){width=100%}
+$$
+\text{Compression Rate} = \frac{\text{64x64}}{\text{16x16}} \times \frac{\text{3}}{\text{256}}\approx 0.1875
+$$
+*The image is expanded to $\approx 5.33$ times of its original spatial dimensions in the latent space*
 
 
-## 5 Conclusions
+**VAE-CycleGAN256: Compression Rate**
 
-1. 
-2. 
+For the second VAE-CycleGAN:
 
-## 6 References 
+Input Size : 256x256
+Input Channels: 3
 
+In the latent space:
+
+Output Size : 16x16 
+Output Channels:  256. 
+
+$$
+\text{Compression Rate} = \frac{\text{256x256}}{\text{16x16}} \times \frac{\text{3}}{\text{256}} = 3\
+$$
+
+*The original input is 3 times more than the output image in the latent space. In other words, the output image is $1/3 \approx 0.333$ times of the input image.
+
+<img src="images/Metrics/Metrics.png" width="60%">
+
+
+The above table summarizes:
+
+1. The Spatial Compression Factor for the CycleGAN and VAE-CycleGAN is 16x. This implies the spacial output in the latent dimension is 1/16 to that of input spatial dimensions.
+
+2. The Spatial Compression Factor for the VAE-CycleGAN256 is 256x. This implies the spacial output in the latent dimension is 1/256 to that of input spacial dimensions. This is a dramatic spatial reduction.
+
+3. The Channel Expansion Factor for all the three models is $\approx $85.33. This implies the channels are increased 85.33 times to that of input channels.
+
+4. The Total Compression Rate for CycleGAN and VAE-CycleGAN is 0.1875. This implies the output is $(1/0.1875) \approx 5.33$ times larger than the input. 
+
+5. The Total Compression Rate for VAE-CycleGAN256 is 3. This implies the output is $(1/3) \approx 0.33$ times to that of input which is an overall size reduction.
+
+
+#### CycleGAN vs VAE-CycleGANs Metrics
+
+
+In all the metrics tables, the errors are calculated as follows:
+
+row 1: The generated/fake satellite images are evaluated against the true satellite images
+
+row 2:  The generated/fake map images are evaluated against the true map images 
+
+row 3: The generated/fake satellite images (from the fake map image input) are evaluated against the true satellite images
+
+row 4:  The generated/fake map images (from the fake satellite image input) are evaluated against the true map images 
+
+
+Using the following convention for the below metrics:
+
+<img src="images/Metrics/Comparisions/inputs.png" width="50%">
+
+
+**Mean Square Error (MSE):**
+
+<img src="images/Metrics/Comparisions/MSE.png" width="70%">
+
+1. The Mean Square Errors of all the models are close to zero for all the models.
+ 
+2. The MSE of the generated satellite/maps images from real input images are comparable for CycleGAN and VAE-CycleGAN models whereas the MSE of the generated satellite/maps images from fake input images are greater for VAE-CycleGAN than CycleGAN.
+
+3. The MSE of the generated satellite/maps images from real input images for the VAE-CycleGAN256 is more than the other two models whereas the MSE of the generated satellite/maps images from fake input images are lesser for VAE-CycleGAN256 than the other two models.
+
+
+
+
+**Peak to Signal Ration (PSNR)**
+
+<img src="images/Metrics/Comparisions/PSNR.png" width="70%">
+
+1. Higher PSNR indicates better quality (common in compression, restoration tasks). 
+
+2. The PSNR of the generated satellite/maps images from real input images are comparable for CycleGAN and VAE-CycleGAN models whereas the PSNR of the generated satellite/maps images from fake input images are lesser for VAE-CycleGAN than CycleGAN.
+
+3. The PSNR of the generated satellite/maps images from real input images for the VAE-CycleGAN256 is lesser than the other two models whereas the PSNR of the generated satellite/maps images from fake input images are lesser for VAE-CycleGAN256 than the other two models.
+
+4. Note that the compression ratio for VAE-CycleGAN256 is 256:1, compared to a compression ratio of 16:1 for the other two models. Additionally, VAE-CycleGAN generates images through probabilistic sampling in the latent space, which introduces diversity and uncertainty modeling into the generation process. These sampled images are then compared to real images during evaluation. 
+
+5. In contrast, the CycleGAN model rely on deterministic transformations where each input produces a fixed output leading to less diversity and a more constrained representation. Although VAE-CycleGAN is also a probabilistic model, it has less layers of compression and the compression ratio is 16:1 compared to VAE-CycleGAN256 which has a compression ratio of 256:1
+
+6. At the cost of slightly higher reconstruction uncertainty, the VAE-CycleGAN256 exhibits high compression and generative flexibility.
+
+7. The PSNR value for the generated map images is higher than 20dB in all the three models indicating the generated images are of acceptable quality.
+
+
+
+
+**Structural Similarity Index (SSIM)**
+
+<img src="images/Metrics/Comparisions/SSIM.png" width="70%">
+
+1. The higher the SSIM, the higher the structural similarity between the images.
+
+2. The SSIM of the generated satellite/map images is comparable in both the CycleGAN and VAE-CycleGAN models. However, only the generated map images achieve an SSIM of around 0.45, while other generated images ( satellite or reconstructed outputs) exhibit lower SSIM values. This suggests a noticeable quality degradation in the generated images, particularly in fine details and structural consistency.
+
+3. The SSIM of the generated satellite/map images (comparing real vs. fake inputs) for VAE-CycleGAN-256 is higher than that of the other two models (CycleGAN and VAE-CycleGAN). This indicates increased structural preservation and image coherence in the VAE-CycleGAN-256 outputs compared to the other two models.
+
+4. Overall, the SSIM measures for all the three models shows a lower quality structural similarity.
+
+
+
+**Frechet Inception Distance(FID)**
+
+<img src="images/Metrics/Comparisions/FID.png" width="70%">
+
+1. The lower the FID, the better the quality and diversity of generated images (closer to real data). 
+
+2. We see varying values of the FID for the generated satellite/maps images in all the three models. All the FID values are much higher than expected which shows the quality of the generated images are very poor.
+
+
+## Conclusions
+
+The VAE-CycleGAN hybrid is a promising solution for satellite-map and map-satellite translations, balancing diversity, realism, and unpaired training efficiency.
+
+1.  Unlike an Autoencoder, VAE learns a structured latent space with probabilistic sampling, ensuring diverse outputs by modeling mean (μ) and variance (σ) of data distributions. This enables the generation of diverse image variants from the target distribution, rather than producing deterministic reconstructions, making VAEs particularly suitable for tasks requiring generative flexibility and semantic variation.
+
+2. GAN improves output fidelity via adversarial training, generating sharper and more realistic samples compared to standalone VAEs which often produce blurry results. 
+
+3. Thus the VAE-CycleGAN balances both diversity (VAE) and realism (GAN).
+
+4. CycleGAN framework enables image-to-image translation without paired datasets. The VAE-CycleGAN converts satellite images to maps (and viceversa) without exact pairs.  
+
+5. VAE provides interpretable latent variables, allowing controlled generation whereas Cycle-Consistency reduces mode collapse by enforcing reversible transformations. The VAE-CycleGAN thus exhibits improved stability and control when compared with GAN and Autoencoder models.
+
+6. The VAE-CycleGAN provides unified training which combines multiple loss components: GAN adversarial loss for realism, identity loss to preserve image content when domains match, cycle-consistency loss to ensure reversible translations, and KL-divergence loss to regularize the latent space. This total objective promotes both high-quality generation and stable convergence. 
+
+
+
+
+## Limitations 
+
+While VAE-CycleGAN is powerful for unpaired image translation by combining VAEs and Cycle-Consistent GANs, it has a few limitations.
+
+1. VAEs optimize for mean squared error(MSE), leading to averaged, blurry outputs. GANs improve sharpness but may not fully compensate. This results in loss of fine textures and/or unrealistic details in generated images. To overcome the VAE-GAN conflict, the VAE-CycleGAN can be implemented with a Wasserstein GAN (WGAN) and gradient penalty for stability. Another alternative is a two-stage training- pretrain the model with VAE first and then add GANs. 
+
+2. VAEs aim for smooth latent spaces, while GANs push for sharp but unstable outputs. This results in failures during training such as color shifts, artifacts and also mode collapse where generators produce limited variations.
+
+3. CycleGAN relies on pixel-level cycle-consistency, which struggles with structural deformations. For example, in a  cat → dog transformation, the outputs may retain source domain geometry i.e. a "dog" with cat-like posture.  To overcome the source domain geometry during transformations, attention mechanisms may be employed in VAE-CycleGANs.
+
+
+4. VAEs require latent space sampling, while CycleGAN needs dual generators/discriminators. This results in slow training and heavy GPU memory usage.
+
+5. VAEs generate probabilistic outputs, making deterministic edits difficult. CycleGAN lacks explicit style/content disentanglement. So, it is hard to precisely control attributes, for example, change only hair color in face translation. To have more control over outputs, a conditional VAE-CycleGAN can be employed where semantics or domain-specific attributes are fed as input to guide the generation process. Alternatively, a StyleGAN-like modulation mechanism can be integrated into the latent space or generator layers, allowing fine-grained control over features such as texture, shape etc.
+
+6. Balancing VAE’s KL-Divergence loss, GAN’s adversarial loss, and cycle-consistency loss is tricky. Small changes in weights like  λ_cycle, λ_kl (KL divergence lambda) etc. can drastically alter results.
+
+7. CycleGAN assumes underlying structure is shared (e.g., edges in photos↔paintings). It fails when domains are too dissimilar(e.g., text→image, audio→ spectrogram).
+
+8. When stacking too many layers in a compression pathway (input → latent space), two critical issues arise. The excessive downsampling discards high-frequency details which results in blurring, checkerboard artifacts or color shifts in the output. There will be loss of positional information which results in misaligned structures(e.g., eyes drift in face generation).
+
+  Flattening spatial dimensions can enable higher compression rates by collapsing redundant spatial information into a compact latent representation. However, this comes with loss of local spatial structure (where the reconstructed outputs may lack fine details or exhibit artifacts) and loss of positional information (where the ouput looks jumbled or misaligned).
+
+  By abandoning pixel grids and adopting coordinate functions or graph structures, we can achieve orders-of-magnitude higher compression while preserving semantic and geometric integrity.  
+
+9. The VAE-CycleGAN relies on a Gaussian latent distribution (mean $\mu$ and variance $\sigma$) for the VAE component. While this choice simplifies training, it is not always optimal due to the following reasons:
+  
+    a. The real world data (e.g., edges in images, molecular structures) may not follow a Gaussian distribution. Alternatives like Uniform, Gamma, or Mixture Models could better match the data manifold.
+
+    b. Gaussian VAEs tend to produce blurry outputs because they prioritize "average" features over rare modes. For example, in face generation, Gaussian latents may suppress unique facial features (e.g., scars, asymmetries).
+    
+    c. We also don’t know the true latent distribution of the data. Gaussian priors force the model to approximate an unknown shape, potentially losing fidelity.
+    
+    d. A single Gaussian may not represent disconnected clusters (e.g., cats vs. dogs in latent space).
+
+
+10. Better alternatives such as Uniform, Gamma, VQ-VAE (vector quantized VAE) exist instead of a Gaussian latent distribution. These can be integrated in the VAE-CycleGAN inplace of Gaussian latent to avoid Gaussian smoothing.
+
+11. The VAE-CycleGAN isn’t limited to images—it can be repurposed for wildly different applications by tweaking its architecture or training data. Example: Convert a molecule's structure into a more effective variant while preserving core properties.
+
+12. The VAE-CycleGAN framework has potential in medical image translation tasks, such as CT-to-MRI synthesis, PET-to-CT conversion, and multimodal fusion in lung and brain imaging. Its ability to operate on unpaired datasets is particularly valuable in clinical scenarios where aligned modalities are scarce or difficult to acquire. 
+
+
+## References

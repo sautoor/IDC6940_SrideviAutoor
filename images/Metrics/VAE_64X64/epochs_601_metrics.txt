@@ -1,0 +1,18 @@
+Compression Ratio: 16.00:1
+
+Train_A and Val_A
+Epoch	Train MSE	Train PSNR	Train SSIM	Train FID	Val MSE 	Val PSNR	Val SSIM	Val FID
+600	0.0386		13.66		0.2081		364.85		0.0355		13.80		0.0497		269.30
+
+Train_B and Val_B
+Epoch	Train MSE	Train PSNR	Train SSIM	Train FID	Val MSE 	Val PSNR	Val SSIM	Val FID
+600	0.0129		18.89		0.5429		324.21		0.0037		24.26		0.4601		241.30
+
+Train_A and Cycle_A
+Epoch	Train MSE	Train PSNR	Train SSIM	Train FID	Cyc MSE 	Cyc PSNR	Cyc SSIM	Cyc FID
+600	0.0386		13.66		0.2081		364.85		0.0337		12.23		0.1063		396.54
+
+Train_B and Cycle_B
+Epoch	Train MSE	Train PSNR	Train SSIM	Train FID	Cyc MSE 	Cyc PSNR	Cyc SSIM	Cyc FID
+600	0.0129		18.89		0.5429		324.21		0.0170		17.67		0.4756		369.23
+

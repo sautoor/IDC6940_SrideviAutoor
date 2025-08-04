@@ -1,0 +1,99 @@
+:root {
+  --page-margin: 15.5vw;
+  --min-toc-width: 0px;
+  --max-toc-width: 10vw; /*max width for standard size without overflow*/
+  
+  --min-content-width: 500px;
+  --max-content-width: calc(97vw - var(--page-margin) - var(--page-margin) - var(--max-toc-width));
+  
+  --content-width: minmax(var(--min-content-width), var(--max-content-width));
+  --max-sidebar-width: calc((97vw - var(--min-content-width)) / 2  - var(--page-margin));
+  
+  --base-toc-width: min(var(--max-toc-width), var(--max-sidebar-width)); /* minmax(var(--min-toc-width), */
+  
+  --zoom-width: min(80vw,100vh);
+}
+
+
+/* Adjust TOC margins or alignment */
+/* TOC Container */
+#TOC {
+  padding: 1em;
+  margin-bottom: 2em;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  min-width: var(--min-toc-width);
+  overflow: visible !important;
+}
+
+#quarto-margin-sidebar{
+  width: max-content;
+  max-width: calc(var(--page-margin) + var(--base-toc-width));
+}
+
+
+@media (min-width: 992px) {
+    body .page-columns {
+        grid-template-columns: [screen-start] var(--page-margin) [screen-start-inset] 0fr [page-start page-start-inset] 0px [body-start-outset] 0px [body-start] 1.5em [body-content-start] var(--content-width) [body-content-end] 1.5em [body-end] 0px [body-end-outset] var(--base-toc-width) [page-end-inset] 0px [page-end] 0fr [screen-end-inset] var(--page-margin) [screen-end];
+        }
+}
+
+.img-fluid{
+  width: 100%;
+  top: unset;
+  left: unset;
+  position: unset;
+  z-index: unset;
+  display: unset;
+}
+
+
+.img-fluid:active {
+  /*position: sticky;
+  top: 0px;*/
+  position: absolute;
+  display: block;
+  left: calc((99vw - var(--zoom-width))/2);
+  width: var(--zoom-width);
+  z-index: 50;
+}
+
+.img-fluid:active ::before {
+  /*position: sticky;
+  top: 0px;*/
+  position: absolute;
+  display: block;
+  height: 99vh;
+  width: 99vw;
+  z-index: 49;
+  backdrop-filter: blur(50px);
+  background: rgba(0,0,0,0.4);
+}
+
+table{
+  table-layout: fixed;
+}
+
+table colgroup col{
+  width: unset !important;
+}
+
+p:has(img), .figure {
+  text-align: center;
+}
+
+.figure {
+  display: block;
+}
+
+.figure div {
+  text-align: center;
+  position: relative;
+}
+
+.code-toggle-btn {
+  height: 40px;
+  min-width: 100px;
+  padding: 8px;
+  box-sizing: border-box;
+}
