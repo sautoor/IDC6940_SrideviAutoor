@@ -29,8 +29,7 @@ editor:
     wrap: 72
 ---
 
-Slides: [slides.html](slides.html){target="_blank"} ( Go to `slides.qmd`
-to edit)
+Slides: [slides.html](VAE_CycleGAN.html){target="_blank"} 
 
 ```{=html}
 <style>
