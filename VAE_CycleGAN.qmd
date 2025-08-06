@@ -1,0 +1,405 @@
+---
+title: "VAE-CycleGAN"
+subtitle: "A Cycle Consistent Probabilistic Framework for Unpaired Image Translation <br><br> Aug 5, 2025<br>Tuesday"
+author: "Sridevi Autoor <br> Advisor: Dr. Achraf Cohen "
+execute:
+  echo: true
+  warning: false
+  message: false
+format: 
+  revealjs:
+    theme: default
+    css: mlp2.css
+    self-contained: true
+    slide-number: true
+    width: 1600
+    height: 900
+    df-print: paged
+    html-math-method: katex
+    code-fold: false
+    code-tools: false
+    incremental: false
+editor: source
+---
+
+## Introduction
+
+<br>
+
+**Image-to-image translation**
+
+-   A powerful computer vision task for transforming images from one domain to another.
+
+-   Broad applications in augmented reality, medical imaging, autonomous driving etc.<br><br>
+
+In this presentation, we’ll explore:
+
+1.  How image-to-image translation works
+
+2.  State-of-the-art solutions in the field.
+
+3.  Key limitations and future work.
+
+## Image-to-image translation: Generative Models
+
+"Deep generative models create realistic data (e.g., images, text) by approximating and sampling from real data distributions."
+
+<img src="images/generative_model.png" width="50%">
+
+## Image-to-image translation: Historical obstacles
+
+<br><br>Challenges for Generative models: 
+   
+
+1. The learned prior is usually a poor approximation.
+
+2. Posterior computation for sampling is often intractable, 
+
+3. Non-smooth activation functions (like ReLUs) are hard to integrate.
+
+4. Sampling is slow: early generative models^[Restricted Boltzmann Machines (RBMs) and Deep Belief Networks (DBNs)] rely on slow Markov Chain Monte Carlo (MCMC) sampling.<br><br>
+
+
+Alternate methods like score matching and noise-contrastive estimation must restrict how the model's probability distributions are designed.
+
+
+## Current Models
+
+::: panel-tabset
+
+### GANs
+
+-   Generative Adversarial Networks (GANs, *Goodfellow et al. 2014*) proposed an adversarial training framework.<br><br>
+
+- By framing learning as a minimax game between a generator ($G$) and discriminator ($D$), GANs learn a loss that tries to classify if the output image is real or fake, while simultaneously training a generative model to minimize this loss. <br><br>
+
+-   GANs enable efficient backpropagation-based optimization while producing high-fidelity samples. However, GAN suffer from from mode collapse and non-convergence.<br><br>
+
+-   GAN-based approaches such as Conditional GANs, introduced by *Isola et al. 2017* require paired data($x$,$y$)
+
+### CycleGAN
+
+CycleGAN (*J.-Y. Zhu et al. 2017*), an unsupervised model enables unpaired translation by using a cycle-consistency loss along with adversarial losses to ensure reversible mappings. <br><br>
+
+CycleGAN has its own drawbacks:
+
+- No explicit latent space → no control in outputs
+
+- Deterministic mapping → low output diversity
+
+- Cannot capture multimodal variations
+
+
+### VAE-CycleGAN
+
+Our work, VAE-CycleGAN, is an extension of VAE-GAN (*Larsen et al., 2016*). We combine VAE’s latent space modeling with GAN’s realism.<br>
+
+- VAE captures structure
+- GAN enables realism via adversarial feedback
+- CycleGAN uses cycle-consistency to learn translation from unpaired data.<br>
+
+Advantages: 
+
+1. Maps unpaired images ($X\rightarrow Y$, e.g. satellite pictures to maps).
+
+2. Models a structured probabilistic latent space.
+
+3. Enables diverse outputs from one input (multimodality)
+
+4. Supports unpaired, reversible translations with high fidelity.
+
+
+:::
+
+## Methods
+
+VAE-CycleGAN integrates a Variational autoencoder (VAE) with a CycleGAN. 
+
+::: panel-tabset
+
+### Autoencoder
+
+:::: figure
+![](images/autoencoder-architecture.png){width="60%"}
+
+::: {style=""}
+[Figure 2: Variational Autoencoder]{.caption} [*Source:*[@noauthor_variational_2023]]{style="position: absolute; right: 0;"}
+:::
+
+::::
+
+
+### VAE
+
+:::: figure
+![](images/VAE_as_autoencoder.png){width="80%"}
+
+::: {style=""}
+[Figure 2: Variational Autoencoder]{.caption} [*Source:*[@noauthor_variational_2023]]{style="position: absolute; right: 0;"}
+:::
+
+::::
+
+
+### GAN
+
+:::: figure
+![](images/GAN-model.png){width="60%"}
+
+::: {style=""}
+[Figure 6: Generative Adversarial Network]{.caption} [*Source:*
+[@zhu2017unpaired]]{style="position: absolute; right: 0;"}
+:::
+::::
+
+### CycleGAN
+
+:::: figure
+![](images/cycleGAN-model.png){width="50%"}
+
+::: {style=""}
+[Figure 7: Cycle GAN Model]{.caption} [*Source:*
+[@zhu2019brief]]{style="position: absolute; right: 0;"}
+:::
+::::
+
+### VAE-CycleGAN
+
+:::: figure
+![](images/VAE-CycleGAN.png){width="70%"}
+
+::: {style="text-align: center; position: relative;"}
+[Figure 10: VAE-CycleGAN Model]{.caption}
+:::
+
+::::
+
+::: 
+## Implementation & Objectives
+::: panel-tabset
+
+###  Satellite → Map Translation (X → Y)
+
+![](images/EncoderDecoder.png){width="100%"}
+
+### GAN loss
+![](images/loss_GAN_XY.png){width="80%"}
+
+### Cycle Consistency
+
+:::: figure
+![](images/cycle-loss.png){width="100%"}
+
+::: {style=""}
+[Figure 8: Cycle Consistency Loss]{.caption} [*Source:*
+[@zhu2019brief]]{style="position: absolute; right: 0;"}
+:::
+::::
+
+### Cycle Consistency 2
+
+![](images/loss_cycle_X_Y.png){width="60%"}  
+
+### Identity Loss
+
+![](images/loss_identity_XY.png){width="65%"}
+
+
+### Kullback-Leibler Divergence (KL) loss
+
+The encoder maps each input $x$ to a mini Gaussian distribution in latent space, defined by mean $\mu(x)$ and variance $\sigma^2(x)$. 
+<br><br>
+
+The KL-Divergence ensures the encoded distributions in the latent cloud stay close to
+$N(0,1)$ but not identical
+
+### Total Objective
+
+The loss function $\mathcal{L}$ for training VAE-CycleGAN model is
+defined as a four key components:
+
+$$
+\mathcal{L}_{\text{Total}} = \underbrace{\mathcal{L}_{\text{VAE}}}_{\text{Probabilistic Encoding}} + \underbrace{\mathcal{L}_{\text{GAN}}}_{\text{Adversarial}} + \underbrace{\lambda_{\text{cyc}}\mathcal{L}_{\text{cycle}}}_{\text{Domain Consistency}} + \underbrace{\lambda_{\text{id}}\mathcal{L}_{\text{identity}}}_{\text{Content Preservation}}
+$$
+
+-   $\lambda_{cyc}$: Weight for cycle consistency loss
+-   $\lambda_{identity}$: Weight for identity loss
+:::
+
+
+## Results- Metrics
+
+::: panel-tabset
+
+### Compression
+
+<img src="images/Metrics/Metrics.png" width="60%">
+
+For VAE-CycleGAN256, the output is reduced to $(1/3) \approx 0.33$ times to that of input.
+
+### Inputs
+
+The following convention is used for the error metrics.
+
+<img src="images/Metrics/Comparisions/inputs.png" width="50%">
+
+### MSE
+
+Measures the average squared difference between the predicted (generated) image and the ground truth (real) image. 
+
+<img src="images/Metrics/Comparisions/MSE.png" width="75%">
+
+CycleGAN maintains the lowest reconstruction errors overall. VAE-CycleGAN compression ratio of 256:1 clearly impacts reconstruction quality.
+
+### PSNR
+
+Peak signal-to-noise ratio (PSNR) is the ratio between the maximum possible power of a signal and the power of corrupting noise that affects the fidelity of its representation.
+
+<img src="images/Metrics/Comparisions/PSNR.png" width="75%">
+
+
+VAE-CycleGAN256 achieve higher PSNR in satellite/map generations on many cycles demonstrating stability, despite higher compression. 
+
+
+### SSIM
+
+The Structural Similarity Index (SSIM) is a perceptual metric that quantifies the similarity between two images by comparing their luminance, contrast, and structure. Unlike pixel-based metrics like MSE and PSNR, SSIM aligns better with human perception.
+
+<img src="images/Metrics/Comparisions/SSIM.png" width="75%">
+
+VAE-CycleGAN256 achieve superior structural preservation in map generation and stability on many cycles, despite higher compression. 
+
+### FID
+
+FID measures the similarity between two sets of images (real vs. generated) using features extracted from a pre-trained Inception-v3 model.
+
+<img src="images/Metrics/Comparisions/FID.png" width="75%">
+
+All the models have a high FID, showing a poor quality in generated images.
+
+:::
+
+
+
+## CycleGAN vs VAE-CycleGAN -1
+
+::: full-width-table
+| CycleGAN| VAE-CycleGAN ||
+|------------------------------------|------------------------------------|
+| ![](images/Results/Comparisions/GAN_AtoM.png){width="100%"}| ![](images/Results/Comparisions/VAE64_AtoM.png){width="100%"}|
+| 64 x 64 Real Satellite images → Fake Maps <br> compression layers, ratio: 2, 16 :1 <br> MSE: 0.0036 <br> PSNR: 24.40 <br> SSIM : 0.4540  |64 x 64 Real Satellite images → Fake Maps <br>  compression layers, ratio: 2, 16 : 1 <br> MSE: 0.0037 <br> PSNR: 24.26 <br> SSIM : 0.4601 | |
+
+:::
+
+Despite its probabilistic latent space, VAE-CycleGAN achieves near-deterministic accuracy, performing comparably to the deterministic CycleGAN (MSE Δ = 0.0001).
+
+## CycleGAN vs VAE-CycleGAN -2
+
+::: full-width-table
+| CycleGAN| VAE-CycleGAN ||
+|------------------------------------|------------------------------------|
+| ![](images/Results/Comparisions/GAN_MtoA.png){width="100%"}| ![](images/Results/Comparisions/VAE64_MtoA.png){width="100%"}|
+|64 x 64 Real Maps → Fake Satellite images <br> compression layers, ratio: 2, 16 : 1  <br> MSE : 0.0345 <br> PSNR: 13.82 <br> SSIM : 0.0943|64 x 64 Real Maps → Fake Satellite images <br> compression layers, ratio: 2, 16 : 1 <br> MSE : 0.0529 <br> PSNR: 13.80 <br> SSIM : 0.0497 ||
+
+:::
+
+Despite its probabilistic latent space, VAE-CycleGAN achieves comparable performance to deterministic CycleGAN, with only a ~2.9% increase in MSE (Δ = 0.0010). 
+
+## VAE-CycleGANs -1
+::: full-width-table
+
+| VAE-CycleGAN| VAE-CycleGAN256 ||
+|------------------------------------|------------------------------------|
+| ![](images/Results/Comparisions/VAE64_AtoM.png){width="100%"}| ![](images/Results/Comparisions/VAE256_AtoM.png){width="100%"}|
+| 64 x 64 Real Satellite images → Fake Maps <br> compression layers, ratio: 2, 16 : 1  <br> MSE : 0.0037 <br> PSNR: 24.26 <br> SSIM: 0.4601  |256 x 256 Real Satellite images → Fake Maps <br>  compression layers, ratio: 4, 256 : 1 <br> MSE : 0.0063 <br> PSNR: 21.99 <br> SSIM: 0.5129 | |
+
+:::
+While MSE is higher for 256×256 outputs, human evaluations may favor its finer details despite increased numerical error.
+
+## VAE-CycleGANs -2
+
+::: full-width-table
+| VAE-CycleGAN | VAE-CycleGAN256  ||
+|------------------------------------|------------------------------------|
+| ![](images/Results/Comparisions/VAE64_MtoA.png){width="100%"}| ![](images/Results/Comparisions/VAE256_MtoA.png){width="100%"}|
+|64 x 64 Real Maps → Fake Satellite images <br> compression layers, ratio: 2, 16 : 1 <br> MSE  : 0.0355 <br> PSNR: 13.80 <br> SSIM : 0.0497 |256 x 256 Real Maps → Fake Satellite images <br>compression layers, ratio: 4, 256 : 1 <br> MSE : 0.0482 <br> PSNR : 12.64 <br> SSIM : 0.0659 ||
+
+:::
+
+Higher-resolution outputs improve structural fidelity (↑SSIM) but reduce pixel accuracy (↑MSE, ↓PSNR).
+
+
+## Conclusions- I
+
+1. VAE learns a structured latent space, enabling diverse and semantically varied outputs.
+
+2. GAN enhances image sharpness and realism through adversarial training, addressing VAE's blurriness.
+
+3. VAE-CycleGAN combines VAE’s diversity with GAN’s realism for balanced image generation.
+
+4. CycleGAN enables unpaired image translation, allowing satellite-to-map conversion without aligned datasets.
+
+5. VAE-CycleGAN offers interpretable latent variables and stable training via cycle-consistency, improving control and reducing mode collapse.
+
+6. GAN, identity, cycle-consistency, and KL-divergence losses ensures realistic, consistent, and stable image generation.
+
+
+## Conclusions- II
+
+7. For VAE-CycleGAN256 model - GAN, cycle and identity losses are low. The extremely high KL divergence (6327.29) indicates that the VAE’s latent space is poorly regularized. The possible causes may include an overly complex latent space or a poor balance between reconstruction and KL terms (a common issue in VAEs).
+  
+8. Though the MSE of the generated images are close to zero, the FID metric is very high, indicating generally poor quality in generated images. 
+
+
+## Limitations & Future Work - I
+
+VAEs produce blurry outputs due to MSE loss, and GANs only partially restore detail.<br>
+
+- Use Wasserstein GAN (WGAN) with gradient penalty 
+- Two-stage training (VAE pretraining followed by GAN)<br><br>
+
+VAEs encourage smooth latent spaces, while GANs favor sharp but unstable outputs.<br>
+
+- Mismatch causes artifacts, and mode collapse.<br><br>
+
+CycleGAN’s cycle-consistency struggles with structural changes, often preserving source geometry <br>   
+
+- Integrate attention mechanisms to better handle shape transformations. <br><br>
+
+## Limitations & Future Work - II
+
+CycleGAN fails when domains are too dissimilar.<br><br>
+
+VAEs produce probabilistic outputs, and CycleGAN lacks explicit style-content disentanglement. <br>
+
+- Use conditional VAE-CycleGAN with semantic inputs, or 
+- integrate StyleGAN-like modulation <br> <br>
+
+
+Excessive downsampling can blur details, introduce artifacts, and cause misaligned structures
+  
+- Flattening boosts compression but worsens local structure fidelity. 
+- Use coordinate/graph-based representations to preserve semantic and geometric integrity<br><br>
+
+
+## Limitations & Future Work - III
+
+VAE-CycleGAN uses a Gaussian latent distribution for simplicity:
+
+- Real data often doesn’t follow a Gaussian distribution.
+
+- The true latent distribution is unknown, so forcing a Gaussian can blur outputs.
+
+- A single Gaussian cannot capture disconnected clusters.
+
+- uniform, gamma, or VQ-VAE (vector quantized VAE) latent distributions can replace the Gaussian prior, reducing smoothing and better capturing complex data structures.<br><br>
+
+
+The VAE-CycleGAN framework is valuable for medical image translation tasks<br>
+
+- as paired datasets are unavailable in clinical settings.
+
+- CT-to-MRI synthesis, PET-to-CT conversion, and lung and brain imaging etc.
+
+## References
+<img src="images/references.png" width="50%">
