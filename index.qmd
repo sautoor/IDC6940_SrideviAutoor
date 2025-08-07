@@ -29,7 +29,7 @@ editor:
     wrap: 72
 ---
 
-Slides: [slides.html](VAE_CycleGAN.html){target="_blank"}
+Slides: [VAE_CycleGAN.html](VAE_CycleGAN.html){target="_blank"}
 
 ```{=html}
 <style>
