@@ -171,8 +171,10 @@ Nevertheless, CycleGAN has its own drawbacks:
     permutations (more in the *Methods Convergence* section).
 
 A hybrid framework that integrates Variational Autoencoders (VAEs) into
-a GAN was developed by [@yan2025synthetic] to leverage the strengths of
-both architectures.
+a GAN was developed by [@yan2025synthetic], [@larsen_autoencoding_2016 ] to leverage the strengths of both architectures. By combining a variational
+autoencoder with a generative adversarial network we can use learned
+feature representations in the GAN discriminator as basis for the VAE
+reconstruction objective.
 
 [@yan2025synthetic] demonstrates that the VAE component,
 utilizing its encoder–decoder architecture, plays a crucial role in
@@ -193,11 +195,6 @@ The combination of VAE and GAN thus leverages the strengths of both
 approaches: VAE’s robust feature extraction and GAN’s fine-tuning
 through adversarial feedback, leading to enhanced data desensitization,
 robustness and generalization.
-
-As explained by [@larsen_autoencoding_2016], by combining a variational
-autoencoder with a generative adversarial network we can use learned
-feature representations in the GAN discriminator as basis for the VAE
-reconstruction objective.
 
 We propose an extension of VAE-GAN, VAE-CycleGAN, another hybrid
 framework that integrates Variational Autoencoders (VAEs) into CycleGAN.
