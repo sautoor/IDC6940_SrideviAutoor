@@ -1,3 +1,6 @@
+# VAE-CycleGAN © 2025 by Sridevi Autoor is licensed under CC BY-ND 4.0. 
+# To view a copy of this license, visit https://creativecommons.org/licenses/by-nd/4.0/
+
 import random
 import time
 import datetime
